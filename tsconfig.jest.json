@@ -1,0 +1,11 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    // テストは ts-jest が CommonJS として実行するため、ビルド用(NodeNext)とは別に指定する
+    "module": "CommonJS",
+    "moduleResolution": "Node10",
+    "rootDir": ".",
+    "types": ["node", "jest"]
+  },
+  "include": ["src/**/*.ts", "tests/**/*.ts"]
+}
