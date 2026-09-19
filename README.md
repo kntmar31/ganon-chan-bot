@@ -103,6 +103,10 @@ Discord上で `/smash-recruit` を実行すると募集フローが始まりま�
 | `npm run build` | TypeScript をビルドして `dist/` に出力 |
 | `npm run lint` | ts-standard（JavaScript Standard Style）でチェック |
 | `npm run lint:fix` | ts-standard で自動整形 |
+| `npm test` | Jest でユニットテストを実行（`tests/` 配下。ソースの構成に対応させている） |
+
+テストは ts-jest で CommonJS として実行する。`import.meta` を使う `src/features/index.ts`（機能ローダー）は
+この環境では扱えないため、テスト対象外にしている。
 
 ## 注意点
 
