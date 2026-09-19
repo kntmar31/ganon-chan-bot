@@ -3,13 +3,28 @@
   "version": "1.0.0",
   "description": "ガノンちゃん：複数機能を持つDiscord Bot（現在の機能: スマブラ対戦相手の募集）",
   "type": "module",
-  "main": "src/index.js",
+  "main": "dist/index.js",
   "scripts": {
-    "deploy-commands": "node deploy-commands.js",
-    "start": "node src/index.js"
+    "build": "tsc",
+    "deploy-commands": "node dist/deploy-commands.js",
+    "start": "node dist/index.js",
+    "lint": "ts-standard",
+    "lint:fix": "ts-standard --fix"
   },
   "dependencies": {
     "discord.js": "^14.16.3",
     "dotenv": "^16.4.5"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.4",
+    "ts-standard": "^12.0.2",
+    "typescript": "^5.9.3"
+  },
+  "ts-standard": {
+    "project": "./tsconfig.json",
+    "ignore": [
+      "dist/**",
+      "**/*.test.ts"
+    ]
   }
 }

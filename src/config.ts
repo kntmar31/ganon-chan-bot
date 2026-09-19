@@ -6,4 +6,4 @@
 // このファイルではなく Discord Developer Portal の「Bot」設定で変更する必要がある。
 // https://discord.com/developers/applications
 
-export const BOT_NAME = 'ガノンちゃん';
+export const BOT_NAME = 'ガノンちゃん'
