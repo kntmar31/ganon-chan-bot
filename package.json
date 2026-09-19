@@ -1,0 +1,15 @@
+{
+  "name": "ganon-chan-bot",
+  "version": "1.0.0",
+  "description": "ガノンちゃん：複数機能を持つDiscord Bot（現在の機能: スマブラ対戦相手の募集）",
+  "type": "module",
+  "main": "src/index.js",
+  "scripts": {
+    "deploy-commands": "node deploy-commands.js",
+    "start": "node src/index.js"
+  },
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5"
+  }
+}
