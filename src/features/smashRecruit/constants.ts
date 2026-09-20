@@ -25,10 +25,13 @@ export const TOGGLE_LABELS = {
   on: 'あり'
 } as const
 
-// 参加者のアイコン画像の設定(単位: px。Discord 上では、幅に合わせて縮小して表示される)
-// 参加人数に上限はなく、アイコンは1列に AVATARS_PER_ROW 人ずつ並べ、あふれたら次の列に折り返す
-export const AVATAR_SIZE = 64
-export const AVATAR_GAP = 8
+// 参加者のアイコン画像の設定(単位: px)
+// 参加人数に上限はなく、アイコンは1列に AVATARS_PER_ROW 人ずつ並べ、あふれたら次の列に折り返す。
+// Discord の PC は、画像を最大 550px 幅で表示し、それより広い画像は縮小する(実機で 64px のアイコンが 62px で表示されたことから逆算)。
+// 1列ぶんの画像の幅(8 * AVATAR_SIZE + 7 * AVATAR_GAP = 355px)を 550px 以下にして、PC で縮小されず、この大きさのまま表示されるようにしている。
+// スマホは画面の幅に合わせて縮小されるが、アイコンと間隔の比率(8:1)を保っているため、見た目の大きさは以前とほぼ変わらない
+export const AVATAR_SIZE = 40
+export const AVATAR_GAP = 5
 export const AVATARS_PER_ROW = 8
 
 // 参加者のアイコン画像のすぐ上に表示する、見出しの文言
