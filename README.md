@@ -83,22 +83,23 @@ cp .env.example .env
 
 ## 3. コマンド登録＆起動
 
-```bash
-npm run build
-npm run deploy-commands
-npm start
-```
-
-TypeScript をビルドした `dist/` を実行するので、コードを変更したら `npm run build` からやり直す。
-
-この3つを順に実行するだけなら、1コマンドにまとめた `npm run dev` が便利。
+初回や、スラッシュコマンドの定義を変えたときは、ビルド → コマンド登録 → 起動をまとめて実行する。
 
 ```bash
 npm run dev
 ```
 
-途中のコマンドが失敗した場合は、そこで止まって Bot は起動しない。
-なお、起動のたびにスラッシュコマンドの登録も行うため、コマンドの定義を変えていないときは `npm run build && npm start` で足りる。
+コマンドの定義を変えていないときは、コマンド登録は不要なので、ビルドして起動するだけでよい。
+
+```bash
+npm start
+```
+
+どちらも、途中のコマンドが失敗した場合はそこで止まり、Bot は起動しない。
+`npm start` は起動のたびにビルドするため、常に最新のコードが動く（`dist/` が古いまま動くことがない）。
+
+Bot は TypeScript をビルドした `dist/` を実行する。ビルドしない環境（`typescript` を入れない本番環境など）では、
+ビルド済みの `dist/` を `npm run start:prod` でそのまま起動する。
 
 起動すると `ガノンちゃん が起動しました（アカウント: ...）` とログが出て、Discord上のBotのステータスに
 「視聴中：ガノンちゃん稼働中」と表示される（`src/index.ts` 内で `BOT_NAME` を使って設定している）。
@@ -109,7 +110,10 @@ Discord上で `/smash-recruit` を実行すると募集フローが始まりま�
 
 | コマンド | 内容 |
 | --- | --- |
+| `npm start` | ビルドして起動 |
 | `npm run dev` | ビルド → コマンド登録 → 起動を、まとめて実行 |
+| `npm run start:prod` | ビルドせず、`dist/` をそのまま起動（ビルド済みの環境向け） |
+| `npm run deploy-commands` | スラッシュコマンドを Discord に登録（ビルド済みの `dist/` が必要） |
 | `npm run build` | TypeScript をビルドして `dist/` に出力 |
 | `npm run lint` | ts-standard（JavaScript Standard Style）でチェック |
 | `npm run lint:fix` | ts-standard で自動整形 |

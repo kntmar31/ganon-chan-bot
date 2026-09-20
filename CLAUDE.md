@@ -21,8 +21,9 @@
 - ユーザーごとの一時入力状態は `src/utils/draftStore.ts` を使う(メモリ上のみ。再起動で消える)
 
 ## 実行とビルド
-- 実行するのは `tsc` でビルドした `dist/`。コードを変更したら `npm run build` からやり直す
-- 起動: `npm run build` → `npm run deploy-commands`(コマンド登録)→ `npm start`。まとめて実行するなら `npm run dev`
+- 実行するのは `tsc` でビルドした `dist/`
+- 起動: `npm start`(ビルドして起動)。コマンドの定義を変えたときは `npm run dev`(ビルド → コマンド登録 → 起動)
+- `npm run start:prod` はビルドせず `dist/` をそのまま起動する。`npm run deploy-commands` も `dist/` を使うため、事前にビルドが必要
 - `src/features/index.ts`(機能ローダー)は `import.meta` を使うため、Jest では扱えずテスト対象外
 
 ## 注意点
