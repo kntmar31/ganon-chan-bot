@@ -34,4 +34,6 @@ try {
   console.log('スラッシュコマンドの登録が完了しました。')
 } catch (error) {
   console.error(error)
+  // 登録に失敗したら非ゼロで終了する（npm run dev のように後続のコマンドとつないでも、失敗に気づけるようにする）
+  process.exitCode = 1
 }

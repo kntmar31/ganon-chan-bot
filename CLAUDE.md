@@ -22,7 +22,7 @@
 
 ## 実行とビルド
 - 実行するのは `tsc` でビルドした `dist/`。コードを変更したら `npm run build` からやり直す
-- 起動: `npm run build` → `npm run deploy-commands`(コマンド登録)→ `npm start`
+- 起動: `npm run build` → `npm run deploy-commands`(コマンド登録)→ `npm start`。まとめて実行するなら `npm run dev`
 - `src/features/index.ts`(機能ローダー)は `import.meta` を使うため、Jest では扱えずテスト対象外
 
 ## 注意点
