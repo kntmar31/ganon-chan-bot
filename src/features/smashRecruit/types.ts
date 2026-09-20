@@ -29,16 +29,6 @@ export function isModeKey (value: unknown): value is ModeKey {
 }
 
 /**
- * 値が「あり/なし」の選択値かどうかを判定する。
- *
- * @param value - 判定する値
- * @returns 「あり/なし」の選択値なら true
- */
-export function isToggleKey (value: unknown): value is ToggleKey {
-  return typeof value === 'string' && Object.hasOwn(TOGGLE_LABELS, value)
-}
-
-/**
  * 値が希望開始時間の選択値かどうかを判定する。
  *
  * @param value - 判定する値

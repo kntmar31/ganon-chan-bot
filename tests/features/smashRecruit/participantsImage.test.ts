@@ -1,5 +1,9 @@
 import sharp from 'sharp'
-import { AVATAR_GAP, AVATAR_SIZE } from '../../../src/features/smashRecruit/constants.js'
+import {
+  AVATAR_GAP,
+  AVATAR_SIZE,
+  AVATARS_PER_ROW
+} from '../../../src/features/smashRecruit/constants.js'
 import { buildParticipantsImage, fetchImage } from '../../../src/features/smashRecruit/participantsImage.js'
 
 /** 1画素の色(RGBA) */
@@ -10,16 +14,19 @@ interface Pixel {
   a: number
 }
 
+/** 1列ぶん(AVATARS_PER_ROW 人ぶん)の画像の幅。人数にかかわらず、画像の幅はこれに固定される */
+const ROW_WIDTH = AVATARS_PER_ROW * AVATAR_SIZE + (AVATARS_PER_ROW - 1) * AVATAR_GAP
+
 /**
  * 単色の PNG を作る。ダミーのアイコン画像として使う。
  *
  * @param r - 赤(0〜255)
  * @param g - 緑(0〜255)
  * @param b - 青(0〜255)
- * @returns 128px 四方の PNG
+ * @returns 256px 四方の PNG
  */
 async function solidPng (r: number, g: number, b: number): Promise<Buffer> {
-  return await sharp({ create: { width: 128, height: 128, channels: 3, background: { r, g, b } } })
+  return await sharp({ create: { width: 256, height: 256, channels: 3, background: { r, g, b } } })
     .png()
     .toBuffer()
 }
@@ -39,89 +46,145 @@ async function pixelAt (png: Buffer, x: number, y: number): Promise<Pixel> {
 }
 
 /**
- * 枠 slot(0 始まり)の左端の位置を返す。
+ * 参加者 index(0 始まり)のアイコンの中央の位置を返す。
  *
- * @param slot - 枠の番号
- * @returns 左端の位置(px)
+ * @param index - 参加者の番号(参加した順)
+ * @returns 中央の位置(px)
  */
-function slotLeft (slot: number): number {
-  return slot * (AVATAR_SIZE + AVATAR_GAP)
+function centerOf (index: number): { x: number, y: number } {
+  const column = index % AVATARS_PER_ROW
+  const row = Math.floor(index / AVATARS_PER_ROW)
+  return {
+    x: column * (AVATAR_SIZE + AVATAR_GAP) + AVATAR_SIZE / 2,
+    y: row * (AVATAR_SIZE + AVATAR_GAP) + AVATAR_SIZE / 2
+  }
+}
+
+/**
+ * 同じ色のダミーのアイコンを、指定した人数ぶん作る。
+ *
+ * @param count - 人数
+ * @returns アイコン画像の配列
+ */
+async function redAvatars (count: number): Promise<Buffer[]> {
+  const red = await solidPng(255, 0, 0)
+  return Array.from({ length: count }, () => red)
 }
 
 describe('buildParticipantsImage', () => {
-  test('画像の大きさは、定員ぶんの枠と間隔から決まる', async () => {
-    const image = await buildParticipantsImage([], 4)
+  test('参加者が1人もいなければ、画像は作れない(例外)', async () => {
+    await expect(buildParticipantsImage([])).rejects.toThrow('1人以上')
+  })
+
+  test.each([1, 3, 8])('%i人なら、幅は常に1列ぶんで、高さは1段ぶん', async (count) => {
+    const image = await buildParticipantsImage(await redAvatars(count))
 
     const { width, height, format } = await sharp(image).metadata()
-    expect(width).toBe(4 * AVATAR_SIZE + 3 * AVATAR_GAP)
+    expect(width).toBe(ROW_WIDTH)
     expect(height).toBe(AVATAR_SIZE)
     expect(format).toBe('png')
   })
 
-  test('参加者のアイコンが、その人の枠の中央に表示される', async () => {
-    const image = await buildParticipantsImage([await solidPng(255, 0, 0)], 3)
+  test.each([
+    [9, 2],
+    [16, 2],
+    [17, 3],
+    [24, 3],
+    [25, 4]
+  ])('%i人なら、8人ごとに折り返して、%i段になる(幅は変わらない)', async (count, rows) => {
+    const image = await buildParticipantsImage(await redAvatars(count))
 
-    const center = await pixelAt(image, slotLeft(0) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    expect(center).toEqual({ r: 255, g: 0, b: 0, a: 255 })
+    const { width, height } = await sharp(image).metadata()
+    expect(width).toBe(ROW_WIDTH)
+    expect(height).toBe(rows * AVATAR_SIZE + (rows - 1) * AVATAR_GAP)
+  })
+
+  test('空き枠は描かない(参加者のいない場所は透明のまま)', async () => {
+    const image = await buildParticipantsImage(await redAvatars(2))
+
+    for (const index of [2, 3, 7]) {
+      const { x, y } = centerOf(index)
+      expect((await pixelAt(image, x, y)).a).toBe(0)
+    }
+  })
+
+  test('参加者のアイコンが、その人の場所の中央に表示される', async () => {
+    const image = await buildParticipantsImage([await solidPng(255, 0, 0)])
+
+    const { x, y } = centerOf(0)
+    expect(await pixelAt(image, x, y)).toEqual({ r: 255, g: 0, b: 0, a: 255 })
   })
 
   test('参加した順に、左から横一列に並ぶ', async () => {
-    const image = await buildParticipantsImage(
-      [await solidPng(255, 0, 0), await solidPng(0, 255, 0), await solidPng(0, 0, 255)],
-      3
-    )
+    const image = await buildParticipantsImage([
+      await solidPng(255, 0, 0),
+      await solidPng(0, 255, 0),
+      await solidPng(0, 0, 255)
+    ])
 
-    const centers = await Promise.all([0, 1, 2].map(async (slot) =>
-      await pixelAt(image, slotLeft(slot) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    ))
+    const centers = await Promise.all([0, 1, 2].map(async (index) => {
+      const { x, y } = centerOf(index)
+      return await pixelAt(image, x, y)
+    }))
     expect(centers.map(({ r, g, b }) => [r, g, b])).toEqual([[255, 0, 0], [0, 255, 0], [0, 0, 255]])
   })
 
+  test('9人目は、次の段の左端に表示される', async () => {
+    const avatars = await redAvatars(8)
+    const image = await buildParticipantsImage([...avatars, await solidPng(0, 255, 0)])
+
+    const ninth = centerOf(8)
+    expect(ninth.x).toBe(AVATAR_SIZE / 2)
+    expect(ninth.y).toBeGreaterThan(AVATAR_SIZE)
+    expect(await pixelAt(image, ninth.x, ninth.y)).toEqual({ r: 0, g: 255, b: 0, a: 255 })
+  })
+
+  test('最後の段は左寄せで、右側は透明のまま', async () => {
+    const image = await buildParticipantsImage(await redAvatars(9))
+
+    const { x, y } = centerOf(9)
+    expect((await pixelAt(image, x, y)).a).toBe(0)
+  })
+
   test('アイコンは円形に切り抜かれ、四隅は透明になる', async () => {
-    const image = await buildParticipantsImage([await solidPng(255, 0, 0)], 1)
+    const image = await buildParticipantsImage([await solidPng(255, 0, 0)])
 
     expect((await pixelAt(image, 1, 1)).a).toBe(0)
     expect((await pixelAt(image, AVATAR_SIZE - 2, AVATAR_SIZE - 2)).a).toBe(0)
   })
 
-  test('枠と枠のあいだは透明', async () => {
-    const image = await buildParticipantsImage([await solidPng(255, 0, 0)], 2)
+  test('アイコンとアイコンのあいだは透明', async () => {
+    const image = await buildParticipantsImage(await redAvatars(2))
 
     const gap = await pixelAt(image, AVATAR_SIZE + AVATAR_GAP / 2, AVATAR_SIZE / 2)
     expect(gap.a).toBe(0)
   })
 
-  test('参加者のいない枠は、半透明のグレーの丸になる', async () => {
-    const image = await buildParticipantsImage([await solidPng(255, 0, 0)], 2)
+  test('アイコンを取得できなかった人(null)は、半透明のグレーの丸になる', async () => {
+    const image = await buildParticipantsImage([null])
 
-    const empty = await pixelAt(image, slotLeft(1) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    expect(empty.a).toBeGreaterThan(0)
-    expect(empty.a).toBeLessThan(255)
-    expect(empty.r).toBe(empty.g)
-    expect(empty.g).toBe(empty.b)
+    const { x, y } = centerOf(0)
+    const placeholder = await pixelAt(image, x, y)
+    expect(placeholder.a).toBeGreaterThan(0)
+    expect(placeholder.a).toBeLessThan(255)
+    expect(placeholder.r).toBe(placeholder.g)
+    expect(placeholder.g).toBe(placeholder.b)
   })
 
-  test('アイコンを取得できなかった人(null)は、空き枠と同じ表示になる', async () => {
-    const image = await buildParticipantsImage([null, await solidPng(255, 0, 0)], 3)
+  test('画像として読めないデータが渡されても、例外にせず、取得できなかった人と同じ表示になる', async () => {
+    const image = await buildParticipantsImage([Buffer.from('これは画像ではない'), null])
 
-    const failed = await pixelAt(image, slotLeft(0) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    const empty = await pixelAt(image, slotLeft(2) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    expect(failed).toEqual(empty)
+    const broken = centerOf(0)
+    const failed = centerOf(1)
+    expect(await pixelAt(image, broken.x, broken.y)).toEqual(await pixelAt(image, failed.x, failed.y))
   })
 
-  test('画像として読めないデータが渡されても、例外にせず空き枠と同じ表示になる', async () => {
-    const image = await buildParticipantsImage([Buffer.from('これは画像ではない')], 2)
+  test('参加人数に上限はなく、大人数でも画像を作れる', async () => {
+    const image = await buildParticipantsImage(await redAvatars(50))
 
-    const broken = await pixelAt(image, slotLeft(0) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    const empty = await pixelAt(image, slotLeft(1) + AVATAR_SIZE / 2, AVATAR_SIZE / 2)
-    expect(broken).toEqual(empty)
-  })
-
-  test('定員より多いアイコンが渡されても、定員ぶんだけ並べる', async () => {
-    const image = await buildParticipantsImage([await solidPng(255, 0, 0), await solidPng(0, 255, 0)], 1)
-
-    const { width } = await sharp(image).metadata()
-    expect(width).toBe(AVATAR_SIZE)
+    const { width, height } = await sharp(image).metadata()
+    expect(width).toBe(ROW_WIDTH)
+    expect(height).toBe(7 * AVATAR_SIZE + 6 * AVATAR_GAP)
   })
 })
 
