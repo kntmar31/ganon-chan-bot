@@ -16,7 +16,7 @@ export const CUSTOM_IDS = {
 export const MODE_LABELS = {
   individual: '個人戦',
   team: 'チーム戦',
-  both: '両方OK'
+  both: '個人戦 / チーム戦 どちらも'
 } as const
 
 // ステージギミック・アイテムの「あり/なし」の選択肢(定義の順が、画面に表示される順になる)
