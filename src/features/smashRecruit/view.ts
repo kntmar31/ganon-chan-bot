@@ -92,7 +92,7 @@ export function buildRecruitModal (): ModalBuilder {
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
         .setMaxLength(300)
-        .setPlaceholder('例：初心者歓迎！20時から2時間くらい遊びます')
+        .setPlaceholder('おる？')
     )
 
   return new ModalBuilder()
