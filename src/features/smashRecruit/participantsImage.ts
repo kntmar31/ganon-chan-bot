@@ -1,11 +1,11 @@
 import sharp from 'sharp'
-import { AVATAR_GAP, AVATAR_SIZE } from './constants.js'
+import { AVATAR_GAP, AVATAR_SIZE, AVATARS_PER_ROW } from './constants.js'
 
-// 空き枠の色(ダークテーマでもライトテーマでも見えるよう、半透明のグレーにする)
-const EMPTY_SLOT_COLOR = 'rgba(128, 128, 128, 0.35)'
+// アイコンを取得できなかった人の丸の色(ダークテーマでもライトテーマでも見えるよう、半透明のグレーにする)
+const PLACEHOLDER_COLOR = 'rgba(128, 128, 128, 0.35)'
 
 /**
- * 直径 AVATAR_SIZE の円の SVG を作る。アイコンを円形に切り抜くマスクと、空き枠の描画に使う。
+ * 直径 AVATAR_SIZE の円の SVG を作る。アイコンを円形に切り抜くマスクと、アイコンを取得できなかった人の丸の描画に使う。
  *
  * @param fill - 塗りつぶしの色
  * @returns SVG のバッファ
@@ -38,28 +38,29 @@ async function toCircle (avatar: Buffer): Promise<Buffer | null> {
 }
 
 /**
- * 参加者のアイコンを、名前なしで横一列に並べた画像を作る。
- * 定員までの空き枠は、灰色の丸で表示する。
+ * 参加者のアイコンを、名前なしで並べた画像を作る。
+ * 1列に AVATARS_PER_ROW 人ずつ、左から右へ並べ、あふれたら次の列に折り返す(最後の列は左寄せ)。
+ * 空き枠は作らず、参加者の人数ぶんだけを並べる。
  *
- * @param avatars - 参加者のアイコン画像(参加した順)。取得できなかった人は null(灰色の丸で表示する)
- * @param capacity - 定員(並べる枠の数)
+ * @param avatars - 参加者のアイコン画像(参加した順。1人以上)。取得できなかった人は null(灰色の丸で表示する)
  * @returns 背景が透明の PNG
  */
-export async function buildParticipantsImage (
-  avatars: ReadonlyArray<Buffer | null>,
-  capacity: number
-): Promise<Buffer> {
-  const width = capacity * AVATAR_SIZE + (capacity - 1) * AVATAR_GAP
-  const emptySlot = circleSvg(EMPTY_SLOT_COLOR)
+export async function buildParticipantsImage (avatars: ReadonlyArray<Buffer | null>): Promise<Buffer> {
+  if (avatars.length === 0) throw new Error('参加者のアイコン画像を作るには、1人以上の参加者が必要です')
+
+  const columns = Math.min(avatars.length, AVATARS_PER_ROW)
+  const rows = Math.ceil(avatars.length / AVATARS_PER_ROW)
+  const width = columns * AVATAR_SIZE + (columns - 1) * AVATAR_GAP
+  const height = rows * AVATAR_SIZE + (rows - 1) * AVATAR_GAP
+  const placeholder = circleSvg(PLACEHOLDER_COLOR)
 
   const overlays = await Promise.all(
-    Array.from({ length: capacity }, async (_, index) => {
-      const avatar = avatars[index]
-      const circle = avatar !== undefined && avatar !== null ? await toCircle(avatar) : null
+    avatars.map(async (avatar, index) => {
+      const circle = avatar !== null ? await toCircle(avatar) : null
       return {
-        input: circle ?? emptySlot,
-        left: index * (AVATAR_SIZE + AVATAR_GAP),
-        top: 0
+        input: circle ?? placeholder,
+        left: (index % AVATARS_PER_ROW) * (AVATAR_SIZE + AVATAR_GAP),
+        top: Math.floor(index / AVATARS_PER_ROW) * (AVATAR_SIZE + AVATAR_GAP)
       }
     })
   )
@@ -67,7 +68,7 @@ export async function buildParticipantsImage (
   return await sharp({
     create: {
       width,
-      height: AVATAR_SIZE,
+      height,
       channels: 4,
       background: { r: 0, g: 0, b: 0, alpha: 0 }
     }

@@ -69,16 +69,21 @@ export function buildRecruitModal (): ModalBuilder {
 }
 
 /**
- * 募集メッセージに付ける「参加 / 取消」ボタンの行を組み立てる。
- * 参加していない人が押すと参加、参加済みの人が押すと取り消しになる。
+ * 募集メッセージに付ける「参加」「取り消し」ボタンの行を組み立てる。
+ * メッセージは全員に同じ表示になり、見る人ごとにボタンを切り替えられないため、2つのボタンを並べる。
  *
- * @returns ボタンを1つ含むコンポーネント行
+ * @returns ボタンを2つ含むコンポーネント行
  */
 export function buildJoinRow (): ActionRowBuilder<ButtonBuilder> {
   const joinButton = new ButtonBuilder()
     .setCustomId(CUSTOM_IDS.JOIN_BUTTON)
-    .setLabel('参加 / 取消')
+    .setLabel('参加')
     .setStyle(ButtonStyle.Success)
 
-  return new ActionRowBuilder<ButtonBuilder>().addComponents(joinButton)
+  const leaveButton = new ButtonBuilder()
+    .setCustomId(CUSTOM_IDS.LEAVE_BUTTON)
+    .setLabel('取り消し')
+    .setStyle(ButtonStyle.Secondary)
+
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(joinButton, leaveButton)
 }
