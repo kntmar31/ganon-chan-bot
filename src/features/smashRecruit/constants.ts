@@ -3,6 +3,7 @@ export const FEATURE_KEY = 'smash-recruit'
 
 // customIdは "機能名:アクション名" で統一し、他の機能と衝突しないようにする
 export const CUSTOM_IDS = {
+  JOIN_BUTTON: `${FEATURE_KEY}:join`,
   MODAL: `${FEATURE_KEY}:modal`,
   MODAL_MODE: `${FEATURE_KEY}:modal-mode`,
   MODAL_GIMMICK: `${FEATURE_KEY}:modal-gimmick`,
@@ -22,6 +23,16 @@ export const TOGGLE_LABELS = {
   off: 'なし',
   on: 'あり'
 } as const
+
+// 参加できる人数の上限(スマブラSPは最大8人)
+export const MAX_PARTICIPANTS = 8
+
+// 参加者のアイコン画像の設定(単位: px。Discord 上では、幅に合わせて縮小して表示される)
+export const AVATAR_SIZE = 96
+export const AVATAR_GAP = 12
+
+// 参加者のアイコン画像の添付ファイル名の接頭辞。参加者の一覧をファイル名に持たせている
+export const PARTICIPANTS_FILE_PREFIX = 'participants'
 
 // 募集文が未入力のときに、募集メッセージの1行目に入れる文言
 export const DEFAULT_RECRUIT_TEXT = 'おる？'

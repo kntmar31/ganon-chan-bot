@@ -5,7 +5,7 @@ import {
   MODE_LABELS,
   TOGGLE_LABELS
 } from '../../../src/features/smashRecruit/constants.js'
-import { buildRecruitModal } from '../../../src/features/smashRecruit/view.js'
+import { buildJoinRow, buildRecruitModal } from '../../../src/features/smashRecruit/view.js'
 
 /** モーダルの Label 1件分の JSON のうち、テストで見る部分だけを表した型 */
 interface LabelJson {
@@ -123,5 +123,18 @@ describe('buildRecruitModal', () => {
     expect(text.type).toBe(ComponentType.TextInput)
     expect(text.required).toBe(false)
     expect(text.max_length).toBe(300)
+  })
+})
+
+describe('buildJoinRow', () => {
+  test('参加 / 取消ボタンが1つだけ入っている', () => {
+    const { components } = buildJoinRow().toJSON() as unknown as {
+      components: Array<{ type: number, custom_id: string, label: string }>
+    }
+
+    expect(components).toHaveLength(1)
+    expect(components[0].type).toBe(ComponentType.Button)
+    expect(components[0].custom_id).toBe(CUSTOM_IDS.JOIN_BUTTON)
+    expect(components[0].label).toBe('参加 / 取消')
   })
 })

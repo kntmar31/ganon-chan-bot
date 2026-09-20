@@ -1,3 +1,4 @@
+import sharp from 'sharp'
 import { MessageFlags } from 'discord.js'
 import type { Component } from '../../../src/types.js'
 import components from '../../../src/features/smashRecruit/components.js'
@@ -77,7 +78,7 @@ describe('smashRecruit components', () => {
 
       await handlerOf(CUSTOM_IDS.MODAL).execute(interaction)
 
-      expect(send).toHaveBeenCalledWith({
+      expect(send).toHaveBeenCalledWith(expect.objectContaining({
         content: [
           '@everyone おる？ (by <@user-1>)',
           '',
@@ -86,11 +87,27 @@ describe('smashRecruit components', () => {
           '・アイテム：なし'
         ].join('\n'),
         allowedMentions: { parse: ['everyone'] }
-      })
+      }))
       expect(interaction.reply).toHaveBeenCalledWith({
         content: '募集を投稿しました！',
         flags: MessageFlags.Ephemeral
       })
+    })
+
+    test('投稿には、空き枠だけの参加者画像と、参加ボタンが付く', async () => {
+      const send = jest.fn().mockResolvedValue(undefined)
+      const interaction = mockModalInteraction('', { channel: { isSendable: () => true, send } })
+
+      await handlerOf(CUSTOM_IDS.MODAL).execute(interaction)
+
+      const sent = send.mock.calls[0][0] as {
+        files: Array<{ name: string }>
+        components: Array<{ toJSON: () => { components: Array<{ custom_id: string }> } }>
+      }
+      expect(sent.files).toHaveLength(1)
+      expect(sent.files[0].name).toBe('participants.png')
+      expect(sent.components).toHaveLength(1)
+      expect(sent.components[0].toJSON().components[0].custom_id).toBe(CUSTOM_IDS.JOIN_BUTTON)
     })
 
     test('選択した内容が、そのまま投稿文に反映される', async () => {
@@ -230,5 +247,185 @@ describe('smashRecruit components', () => {
 
       await expect(handlerOf(CUSTOM_IDS.MODAL).execute(interaction)).rejects.toThrow()
     })
+  })
+})
+
+describe('smashRecruit 参加ボタン', () => {
+  let avatarPng: Buffer
+
+  beforeAll(async () => {
+    avatarPng = await sharp({
+      create: { width: 128, height: 128, channels: 3, background: { r: 10, g: 20, b: 30 } }
+    }).png().toBuffer()
+  })
+
+  beforeEach(() => {
+    // アイコン画像のダウンロードは、常に成功するものとして扱う
+    jest.spyOn(globalThis, 'fetch').mockImplementation(async () => new Response(new Uint8Array(avatarPng)))
+  })
+
+  afterEach(() => {
+    jest.restoreAllMocks()
+  })
+
+  /**
+   * 参加ボタンのインタラクションのモックを作る。
+   *
+   * @param userId - ボタンを押した人のユーザー ID
+   * @param currentFileName - 投稿に付いている参加者画像のファイル名(付いていなければ undefined)
+   * @param extra - モックに追加・上書きするプロパティ
+   * @returns ボタンのインタラクションのモック
+   */
+  function mockJoinInteraction (
+    userId: string,
+    currentFileName: string | undefined,
+    extra: Record<string, unknown> = {}
+  ): any {
+    const avatarUrl = (id: string): string => `https://cdn.example/${id}.png`
+    return {
+      user: { id: userId, displayAvatarURL: () => avatarUrl(userId) },
+      message: { id: 'message-1' },
+      deferUpdate: jest.fn().mockResolvedValue(undefined),
+      fetchReply: jest.fn().mockResolvedValue({
+        attachments: { first: () => currentFileName === undefined ? undefined : { name: currentFileName } }
+      }),
+      editReply: jest.fn().mockResolvedValue(undefined),
+      followUp: jest.fn().mockResolvedValue(undefined),
+      client: {
+        users: {
+          fetch: jest.fn(async (id: string) => ({ id, displayAvatarURL: () => avatarUrl(id) }))
+        }
+      },
+      ...extra
+    }
+  }
+
+  /**
+   * editReply に渡された、新しい参加者画像のファイル名を取り出す。
+   *
+   * @param interaction - ボタンのインタラクションのモック
+   * @returns 添付ファイル名
+   */
+  function editedFileName (interaction: any): string {
+    return (interaction.editReply.mock.calls[0][0] as { files: Array<{ name: string }> }).files[0].name
+  }
+
+  test('参加していない人が押すと、その人が参加者に加わり、画像が差し替えられる', async () => {
+    const interaction = mockJoinInteraction('111', 'participants.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(interaction.editReply).toHaveBeenCalledTimes(1)
+    expect(editedFileName(interaction)).toBe('participants-111.png')
+    // 古い画像を残さず、置き換える
+    expect(interaction.editReply.mock.calls[0][0].attachments).toEqual([])
+  })
+
+  test('すでにいる参加者は保持され、押した人が末尾に加わる', async () => {
+    const interaction = mockJoinInteraction('333', 'participants-111-222.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(editedFileName(interaction)).toBe('participants-111-222-333.png')
+  })
+
+  test('参加済みの人が押すと、取り消される', async () => {
+    const interaction = mockJoinInteraction('222', 'participants-111-222-333.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(editedFileName(interaction)).toBe('participants-111-333.png')
+  })
+
+  test('参加者画像が付いていない投稿でも(想定外)、空の一覧として扱って参加できる', async () => {
+    const interaction = mockJoinInteraction('111', undefined)
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(editedFileName(interaction)).toBe('participants-111.png')
+  })
+
+  test('満員なら、本人にだけ案内し、投稿は書き換えない', async () => {
+    const full = 'participants-1-2-3-4-5-6-7-8.png'
+    const interaction = mockJoinInteraction('9', full)
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(interaction.followUp).toHaveBeenCalledWith({
+      content: '満員です(最大8人)。',
+      flags: MessageFlags.Ephemeral
+    })
+    expect(interaction.editReply).not.toHaveBeenCalled()
+  })
+
+  test('満員でも、参加済みの人は取り消せる', async () => {
+    const interaction = mockJoinInteraction('8', 'participants-1-2-3-4-5-6-7-8.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(editedFileName(interaction)).toBe('participants-1-2-3-4-5-6-7.png')
+  })
+
+  test('画像の作成より先に、受け付けたことを Discord に返す(3秒の応答期限のため)', async () => {
+    const interaction = mockJoinInteraction('111', 'participants.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    const deferOrder = interaction.deferUpdate.mock.invocationCallOrder[0]
+    expect(deferOrder).toBeLessThan(interaction.fetchReply.mock.invocationCallOrder[0])
+    expect(deferOrder).toBeLessThan(interaction.editReply.mock.invocationCallOrder[0])
+  })
+
+  test('他の参加者のユーザー情報は取得し、押した本人は取得し直さない', async () => {
+    const interaction = mockJoinInteraction('333', 'participants-111-222.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(interaction.client.users.fetch).toHaveBeenCalledTimes(2)
+    expect(interaction.client.users.fetch).toHaveBeenCalledWith('111')
+    expect(interaction.client.users.fetch).toHaveBeenCalledWith('222')
+  })
+
+  test('アイコン画像のダウンロードに失敗しても、投稿は更新される', async () => {
+    jest.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('network error'))
+    const interaction = mockJoinInteraction('222', 'participants-111.png')
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(editedFileName(interaction)).toBe('participants-111-222.png')
+  })
+
+  test('他の参加者のユーザー情報を取得できなくても、その人は参加者のまま保持される', async () => {
+    const interaction = mockJoinInteraction('222', 'participants-111.png')
+    interaction.client.users.fetch.mockRejectedValue(new Error('Unknown User'))
+
+    await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+    expect(editedFileName(interaction)).toBe('participants-111-222.png')
+  })
+
+  test('同じ投稿への同時の操作でも、参加者の一覧が上書きし合わず、両方が反映される', async () => {
+    // 投稿の状態を共有し、読み取りと書き込みに時間がかかる状況を再現する
+    const post = { fileName: 'participants.png' }
+    const delay = async (): Promise<void> => await new Promise((resolve) => setTimeout(resolve, 10))
+    const overrides = {
+      fetchReply: jest.fn(async () => {
+        await delay()
+        return { attachments: { first: () => ({ name: post.fileName }) } }
+      }),
+      editReply: jest.fn(async (options: { files: Array<{ name: string }> }) => {
+        await delay()
+        post.fileName = options.files[0].name
+      })
+    }
+    const first = mockJoinInteraction('111', undefined, overrides)
+    const second = mockJoinInteraction('222', undefined, overrides)
+
+    await Promise.all([
+      handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(first),
+      handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(second)
+    ])
+
+    expect(post.fileName).toBe('participants-111-222.png')
   })
 })

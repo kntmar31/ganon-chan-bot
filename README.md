@@ -26,7 +26,8 @@ ganon-chan-bot/
     ├── config.ts            # BOT_NAMEなど、Bot全体に関わる設定値
     ├── types.ts             # Command / Component / Feature など、機能共通の型
     ├── utils/
-    │   └── draftStore.ts    # 機能横断で使う、ユーザーごとの一時入力状態ストア
+    │   ├── draftStore.ts    # 機能横断で使う、ユーザーごとの一時入力状態ストア
+    │   └── keyedLock.ts     # 同じキー(例: メッセージ)への処理を、1つずつ順番に実行する仕組み
     └── features/
         ├── index.ts         # features配下のフォルダを自動スキャンして読み込むローダー
         └── smashRecruit/    # 「募集機能」一式（1機能1フォルダ）
@@ -34,8 +35,10 @@ ganon-chan-bot/
             ├── constants.ts     # customIdや選択肢ラベルなどの定数
             ├── types.ts         # 募集内容(RecruitInput)などの型と、選択値の判定
             ├── command.ts       # /smash-recruit の定義と、モーダルの表示
-            ├── components.ts    # モーダル送信時の処理(募集メッセージの投稿)
-            └── view.ts          # 募集内容を入力するモーダルの組み立てロジック
+            ├── components.ts    # モーダル送信時の処理(募集メッセージの投稿)と、参加ボタンの処理
+            ├── participants.ts  # 参加者の一覧の扱い(添付ファイル名との相互変換、参加・取り消しの判定)
+            ├── participantsImage.ts  # 参加者のアイコンを横一列に並べた画像の合成と、アイコンのダウンロード
+            └── view.ts          # 募集内容を入力するモーダルと、参加ボタンの組み立てロジック
 ```
 
 ### 設計方針
@@ -64,8 +67,11 @@ ganon-chan-bot/
 2. 左メニュー「Bot」→「Add Bot」でBotを作成し、「Reset Token」でトークンを取得
 3. 左メニュー「OAuth2」→「URL Generator」で
    - SCOPES: `bot`, `applications.commands`
-   - BOT PERMISSIONS: `Send Messages`, `Mention Everyone`, `Use Slash Commands`
+   - BOT PERMISSIONS: `Send Messages`, `Mention Everyone`, `Use Slash Commands`, `Attach Files`
    を選び、生成されたURLからBotをサーバーに招待
+
+`Attach Files` は、募集メッセージに参加者のアイコン画像を添付するために必要。すでに招待済みのサーバーでは、
+サーバー設定（またはチャンネル設定）でBotのロールに「ファイルを添付」権限を追加する。
 
 ## 2. セットアップ
 
@@ -109,6 +115,14 @@ Discord上で `/smash-recruit` を実行すると、募集内容を入力する�
 投稿される募集メッセージの1行目は、募集文を入力した場合は `@everyone 募集文 (by 投稿者)`、未入力の場合は `@everyone おる？ (by 投稿者)` になります（未入力時の文言は `constants.ts` の `DEFAULT_RECRUIT_TEXT`）。2行目以降に、選んだ対戦形式・ステージギミック・アイテムが並びます。
 最初から「個人戦・ギミックなし・アイテムなし」が選択されています（デフォルト値は `constants.ts` の `DEFAULT_SELECTION`）。
 
+投稿された募集メッセージには、「参加 / 取消」ボタンと、参加者のアイコンを名前なしで横一列に並べた画像が付きます。
+
+- ボタンを押すと参加、参加済みの人がもう一度押すと取り消しになります（最大 `MAX_PARTICIPANTS` 人。`constants.ts` で変更できます）
+- 定員に達していると、押した人にだけ「満員です」と表示されます（参加済みの人は取り消せます）
+- 参加者の枠は、空いている分が灰色の丸で表示されます
+- アイコンは、Discord 全体のアイコンを使います（サーバーごとのアイコンは使いません）
+- 画像は、押されるたびに作り直して差し替えます。画像の合成には [sharp](https://sharp.pixelplumbing.com/) を使っています
+
 モーダル内のラジオグループは新しい Discord API の機能のため、`discord.js` は 14.27.0 以上が必要です。
 
 ## 開発コマンド
@@ -131,5 +145,7 @@ Discord上で `/smash-recruit` を実行すると、募集内容を入力する�
 
 - `@everyone` を実際に通知するには、Bot自身に「Mention Everyone」権限が必要です（上記の招待URLに含めています）
 - 募集機能はモーダル1画面で入力が完結するため、入力途中の状態をBot側では保持しません（`draftStore.ts` は、複数の画面をまたぐ機能を作るときのために残しています）
+- 参加者の一覧は、Bot のメモリではなく、投稿に添付した画像のファイル名（`participants-<ユーザーID>-….png`）に持たせています。そのため、Bot を再起動しても、投稿済みの募集の参加者は消えません
+- 同じ投稿への同時の操作は、`keyedLock.ts` で1つずつ順番に処理します。この仕組みはプロセス内だけで働くため、Botを複数プロセスで動かす構成にするときは、別の排他制御が必要です
 - 機能が増えて複数人が同時にBotを使うようになった場合、`draftStore.ts` のMapはプロセスをまたがないため、
   Botを複数プロセスで動かす構成にするときはRedis等の外部ストアに差し替える必要があります

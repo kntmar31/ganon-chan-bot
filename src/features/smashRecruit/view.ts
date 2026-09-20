@@ -1,4 +1,7 @@
 import {
+  ActionRowBuilder,
+  ButtonBuilder,
+  ButtonStyle,
   LabelBuilder,
   ModalBuilder,
   RadioGroupBuilder,
@@ -63,4 +66,19 @@ export function buildRecruitModal (): ModalBuilder {
     .setCustomId(CUSTOM_IDS.MODAL)
     .setTitle('スマブラ募集')
     .addLabelComponents(modeLabel, gimmickLabel, itemLabel, textLabel)
+}
+
+/**
+ * 募集メッセージに付ける「参加 / 取消」ボタンの行を組み立てる。
+ * 参加していない人が押すと参加、参加済みの人が押すと取り消しになる。
+ *
+ * @returns ボタンを1つ含むコンポーネント行
+ */
+export function buildJoinRow (): ActionRowBuilder<ButtonBuilder> {
+  const joinButton = new ButtonBuilder()
+    .setCustomId(CUSTOM_IDS.JOIN_BUTTON)
+    .setLabel('参加 / 取消')
+    .setStyle(ButtonStyle.Success)
+
+  return new ActionRowBuilder<ButtonBuilder>().addComponents(joinButton)
 }
