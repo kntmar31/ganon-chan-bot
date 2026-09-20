@@ -1,5 +1,10 @@
 import { ComponentType } from 'discord.js'
-import { CUSTOM_IDS, MODE_LABELS, TOGGLE_LABELS } from '../../../src/features/smashRecruit/constants.js'
+import {
+  CUSTOM_IDS,
+  DEFAULT_SELECTION,
+  MODE_LABELS,
+  TOGGLE_LABELS
+} from '../../../src/features/smashRecruit/constants.js'
 import { buildRecruitModal } from '../../../src/features/smashRecruit/view.js'
 
 /** モーダルの Label 1件分の JSON のうち、テストで見る部分だけを表した型 */
@@ -11,7 +16,7 @@ interface LabelJson {
     custom_id: string
     required?: boolean
     max_length?: number
-    options?: Array<{ label: string, value: string }>
+    options?: Array<{ label: string, value: string, default?: boolean }>
   }
 }
 
@@ -58,13 +63,45 @@ describe('buildRecruitModal', () => {
   test('選択肢の値とラベルが定数の定義と一致する', () => {
     const [mode, gimmick, item] = buildModalJson().components
 
-    expect(mode.component.options).toEqual(
+    /**
+     * 選択肢から、デフォルトの指定を除いた値とラベルだけを取り出す。
+     *
+     * @param label - モーダルの Label 1件分
+     * @returns 値とラベルの配列
+     */
+    const valuesAndLabels = (label: LabelJson): Array<{ value: string, label: string }> =>
+      (label.component.options ?? []).map(({ value, label }) => ({ value, label }))
+
+    expect(valuesAndLabels(mode)).toEqual(
       Object.entries(MODE_LABELS).map(([value, label]) => ({ value, label }))
     )
-    expect(gimmick.component.options).toEqual(
+    expect(valuesAndLabels(gimmick)).toEqual(
       Object.entries(TOGGLE_LABELS).map(([value, label]) => ({ value, label }))
     )
-    expect(item.component.options).toEqual(gimmick.component.options)
+    expect(valuesAndLabels(item)).toEqual(valuesAndLabels(gimmick))
+  })
+
+  test('最初から、個人戦・ギミックなし・アイテムなしが選択されている', () => {
+    const [mode, gimmick, item] = buildModalJson().components
+
+    /**
+     * 最初から選択されている選択肢の値を取り出す。
+     *
+     * @param label - モーダルの Label 1件分
+     * @returns デフォルトで選択されている値の配列
+     */
+    const defaultsOf = (label: LabelJson): string[] =>
+      (label.component.options ?? []).filter((option) => option.default === true).map((option) => option.value)
+
+    expect(defaultsOf(mode)).toEqual(['individual'])
+    expect(defaultsOf(gimmick)).toEqual(['off'])
+    expect(defaultsOf(item)).toEqual(['off'])
+  })
+
+  test('デフォルトの値は、すべて選択肢に存在する', () => {
+    expect(Object.keys(MODE_LABELS)).toContain(DEFAULT_SELECTION.mode)
+    expect(Object.keys(TOGGLE_LABELS)).toContain(DEFAULT_SELECTION.gimmick)
+    expect(Object.keys(TOGGLE_LABELS)).toContain(DEFAULT_SELECTION.item)
   })
 
   test('項目名のラベルが表示される', () => {

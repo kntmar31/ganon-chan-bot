@@ -22,3 +22,10 @@ export const TOGGLE_LABELS = {
   on: 'あり',
   off: 'なし'
 } as const
+
+// モーダルを開いたときに、最初から選択されている値
+export const DEFAULT_SELECTION = {
+  mode: 'individual',
+  gimmick: 'off',
+  item: 'off'
+} as const satisfies { mode: keyof typeof MODE_LABELS, gimmick: keyof typeof TOGGLE_LABELS, item: keyof typeof TOGGLE_LABELS }

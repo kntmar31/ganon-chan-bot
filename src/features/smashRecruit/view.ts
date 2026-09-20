@@ -5,21 +5,28 @@ import {
   TextInputBuilder,
   TextInputStyle
 } from 'discord.js'
-import { CUSTOM_IDS, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
+import { CUSTOM_IDS, DEFAULT_SELECTION, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
 
 /**
  * 選択肢のラベル定義から、必須のラジオグループを組み立てる。
- * 未選択のままでは送信できないため、送信時には必ず1つ選ばれている。
+ * デフォルト値が最初から選択されており、送信時には必ず1つ選ばれている。
  *
  * @param customId - ラジオグループの customId
  * @param labels - 選択肢(キー: 内部で使う値、値: 画面に表示するラベル)
+ * @param defaultValue - 最初から選択しておく値
  * @returns ラジオグループ
  */
-function buildRadioGroup (customId: string, labels: Record<string, string>): RadioGroupBuilder {
+function buildRadioGroup (
+  customId: string,
+  labels: Record<string, string>,
+  defaultValue: string
+): RadioGroupBuilder {
   return new RadioGroupBuilder()
     .setCustomId(customId)
     .setRequired(true)
-    .addOptions(Object.entries(labels).map(([value, label]) => ({ value, label })))
+    .addOptions(
+      Object.entries(labels).map(([value, label]) => ({ value, label, default: value === defaultValue }))
+    )
 }
 
 /**
@@ -31,15 +38,15 @@ function buildRadioGroup (customId: string, labels: Record<string, string>): Rad
 export function buildRecruitModal (): ModalBuilder {
   const modeLabel = new LabelBuilder()
     .setLabel('対戦形式')
-    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_MODE, MODE_LABELS))
+    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_MODE, MODE_LABELS, DEFAULT_SELECTION.mode))
 
   const gimmickLabel = new LabelBuilder()
     .setLabel('ステージギミック')
-    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_GIMMICK, TOGGLE_LABELS))
+    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_GIMMICK, TOGGLE_LABELS, DEFAULT_SELECTION.gimmick))
 
   const itemLabel = new LabelBuilder()
     .setLabel('アイテム')
-    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_ITEM, TOGGLE_LABELS))
+    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_ITEM, TOGGLE_LABELS, DEFAULT_SELECTION.item))
 
   const textLabel = new LabelBuilder()
     .setLabel('募集文（未入力でも投稿できます）')
