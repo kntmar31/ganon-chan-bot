@@ -40,7 +40,8 @@ async function toCircle (avatar: Buffer): Promise<Buffer | null> {
 /**
  * 参加者のアイコンを、名前なしで並べた画像を作る。
  * 1列に AVATARS_PER_ROW 人ずつ、左から右へ並べ、あふれたら次の列に折り返す(最後の列は左寄せ)。
- * 空き枠は作らず、参加者の人数ぶんだけを並べる。
+ * 空き枠は描かないが、画像の幅は常に1列ぶん(AVATARS_PER_ROW 人ぶん)に固定する。
+ * 人数が少なくても、Discord 上でのアイコンの大きさが変わらないようにするため(右側は透明のまま)。
  *
  * @param avatars - 参加者のアイコン画像(参加した順。1人以上)。取得できなかった人は null(灰色の丸で表示する)
  * @returns 背景が透明の PNG
@@ -48,9 +49,8 @@ async function toCircle (avatar: Buffer): Promise<Buffer | null> {
 export async function buildParticipantsImage (avatars: ReadonlyArray<Buffer | null>): Promise<Buffer> {
   if (avatars.length === 0) throw new Error('参加者のアイコン画像を作るには、1人以上の参加者が必要です')
 
-  const columns = Math.min(avatars.length, AVATARS_PER_ROW)
   const rows = Math.ceil(avatars.length / AVATARS_PER_ROW)
-  const width = columns * AVATAR_SIZE + (columns - 1) * AVATAR_GAP
+  const width = AVATARS_PER_ROW * AVATAR_SIZE + (AVATARS_PER_ROW - 1) * AVATAR_GAP
   const height = rows * AVATAR_SIZE + (rows - 1) * AVATAR_GAP
   const placeholder = circleSvg(PLACEHOLDER_COLOR)
 
