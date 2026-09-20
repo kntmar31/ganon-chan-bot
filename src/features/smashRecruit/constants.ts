@@ -9,6 +9,7 @@ export const CUSTOM_IDS = {
   MODAL_MODE: `${FEATURE_KEY}:modal-mode`,
   MODAL_GIMMICK: `${FEATURE_KEY}:modal-gimmick`,
   MODAL_ITEM: `${FEATURE_KEY}:modal-item`,
+  MODAL_START_TIME: `${FEATURE_KEY}:modal-start-time`,
   MODAL_TEXT_INPUT: `${FEATURE_KEY}:modal-text`
 } as const
 
@@ -40,9 +41,25 @@ export const PARTICIPANTS_FILE_PREFIX = 'participants'
 // 募集文が未入力のときに、募集メッセージの1行目に入れる文言
 export const DEFAULT_RECRUIT_TEXT = 'おる？'
 
+// 希望開始時間の選択肢(定義の順が、画面に表示される順になる。キー: 内部で使う値、値: 画面に表示するラベル)
+export const START_TIME_LABELS = {
+  '23:00': '23:00',
+  '23:30': '23:30',
+  '0:00': '0:00',
+  '0:30': '0:30',
+  '1:00': '1:00',
+  other: 'その他'
+} as const
+
 // モーダルを開いたときに、最初から選択されている値
 export const DEFAULT_SELECTION = {
   mode: 'individual',
   gimmick: 'off',
-  item: 'off'
-} as const satisfies { mode: keyof typeof MODE_LABELS, gimmick: keyof typeof TOGGLE_LABELS, item: keyof typeof TOGGLE_LABELS }
+  item: 'off',
+  startTime: '23:00'
+} as const satisfies {
+  mode: keyof typeof MODE_LABELS
+  gimmick: keyof typeof TOGGLE_LABELS
+  item: keyof typeof TOGGLE_LABELS
+  startTime: keyof typeof START_TIME_LABELS
+}

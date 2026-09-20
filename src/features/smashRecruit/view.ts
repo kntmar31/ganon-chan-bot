@@ -5,10 +5,17 @@ import {
   LabelBuilder,
   ModalBuilder,
   RadioGroupBuilder,
+  StringSelectMenuBuilder,
   TextInputBuilder,
   TextInputStyle
 } from 'discord.js'
-import { CUSTOM_IDS, DEFAULT_SELECTION, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
+import {
+  CUSTOM_IDS,
+  DEFAULT_SELECTION,
+  MODE_LABELS,
+  START_TIME_LABELS,
+  TOGGLE_LABELS
+} from './constants.js'
 
 /**
  * 選択肢のラベル定義から、必須のラジオグループを組み立てる。
@@ -51,6 +58,21 @@ export function buildRecruitModal (): ModalBuilder {
     .setLabel('アイテム')
     .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_ITEM, TOGGLE_LABELS, DEFAULT_SELECTION.item))
 
+  const startTimeSelect = new StringSelectMenuBuilder()
+    .setCustomId(CUSTOM_IDS.MODAL_START_TIME)
+    .setRequired(true)
+    .addOptions(
+      Object.entries(START_TIME_LABELS).map(([value, label]) => ({
+        value,
+        label,
+        default: value === DEFAULT_SELECTION.startTime
+      }))
+    )
+
+  const startTimeLabel = new LabelBuilder()
+    .setLabel('希望開始時間')
+    .setStringSelectMenuComponent(startTimeSelect)
+
   const textLabel = new LabelBuilder()
     .setLabel('募集文（未入力でも投稿できます）')
     .setTextInputComponent(
@@ -65,7 +87,7 @@ export function buildRecruitModal (): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(CUSTOM_IDS.MODAL)
     .setTitle('スマブラ募集')
-    .addLabelComponents(modeLabel, gimmickLabel, itemLabel, textLabel)
+    .addLabelComponents(modeLabel, gimmickLabel, itemLabel, startTimeLabel, textLabel)
 }
 
 /**

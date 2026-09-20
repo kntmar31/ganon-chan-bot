@@ -8,6 +8,7 @@ import {
   DEFAULT_RECRUIT_TEXT,
   MODE_LABELS,
   PARTICIPANTS_HEADING,
+  START_TIME_LABELS,
   TOGGLE_LABELS
 } from './constants.js'
 import {
@@ -17,24 +18,27 @@ import {
   removeParticipant
 } from './participants.js'
 import { buildParticipantsImage, fetchImage } from './participantsImage.js'
-import { isModeKey, isToggleKey } from './types.js'
+import { isModeKey, isStartTimeKey, isToggleKey } from './types.js'
 import type { RecruitInput } from './types.js'
 import { buildJoinRow } from './view.js'
 
 /**
- * モーダルの送信内容から、募集内容(3項目)を取り出す。
+ * モーダルの送信内容から、募集内容(4項目)を取り出す。
  * 送信値はクライアントから届くため、想定外の値が含まれていれば undefined を返す。
  *
  * @param interaction - モーダル送信のインタラクション
- * @returns 3項目がそろっていれば募集内容、そうでなければ undefined
+ * @returns 4項目がそろっていれば募集内容、そうでなければ undefined
  */
 function readRecruitInput (interaction: ModalSubmitInteraction): RecruitInput | undefined {
   const mode = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_MODE)
   const gimmick = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_GIMMICK)
   const item = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_ITEM)
+  const [startTime] = interaction.fields.getStringSelectValues(CUSTOM_IDS.MODAL_START_TIME)
 
-  if (!isModeKey(mode) || !isToggleKey(gimmick) || !isToggleKey(item)) return undefined
-  return { mode, gimmick, item }
+  if (!isModeKey(mode) || !isToggleKey(gimmick) || !isToggleKey(item) || !isStartTimeKey(startTime)) {
+    return undefined
+  }
+  return { mode, gimmick, item, startTime }
 }
 
 /**
@@ -174,6 +178,7 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
       `・対戦形式：${MODE_LABELS[input.mode]}`,
       `・ステージギミック：${TOGGLE_LABELS[input.gimmick]}`,
       `・アイテム：${TOGGLE_LABELS[input.item]}`,
+      `・希望開始時間：${START_TIME_LABELS[input.startTime]}`,
       PARTICIPANTS_HEADING
     ].join('\n')
 
