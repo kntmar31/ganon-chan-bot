@@ -2,6 +2,7 @@ import {
   ActionRowBuilder,
   ButtonBuilder,
   ButtonStyle,
+  CheckboxGroupBuilder,
   LabelBuilder,
   ModalBuilder,
   RadioGroupBuilder,
@@ -13,8 +14,8 @@ import {
   CUSTOM_IDS,
   DEFAULT_SELECTION,
   MODE_LABELS,
-  START_TIME_LABELS,
-  TOGGLE_LABELS
+  OPTION_CHECKBOXES,
+  START_TIME_LABELS
 } from './constants.js'
 
 /**
@@ -50,13 +51,23 @@ export function buildRecruitModal (): ModalBuilder {
     .setLabel('対戦形式')
     .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_MODE, MODE_LABELS, DEFAULT_SELECTION.mode))
 
-  const gimmickLabel = new LabelBuilder()
-    .setLabel('ステージギミック')
-    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_GIMMICK, TOGGLE_LABELS, DEFAULT_SELECTION.gimmick))
-
-  const itemLabel = new LabelBuilder()
-    .setLabel('アイテム')
-    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_ITEM, TOGGLE_LABELS, DEFAULT_SELECTION.item))
+  // 何もチェックしない(どちらも「なし」)状態でも送信できるよう、必須にせず、最小の選択数を 0 にする
+  const optionsLabel = new LabelBuilder()
+    .setLabel('ステージギミック・アイテム')
+    .setDescription('チェックしたものが「あり」になります(チェックなしは「なし」)')
+    .setCheckboxGroupComponent(
+      new CheckboxGroupBuilder()
+        .setCustomId(CUSTOM_IDS.MODAL_OPTIONS)
+        .setRequired(false)
+        .setMinValues(0)
+        .addOptions(
+          (['gimmick', 'item'] as const).map((field) => ({
+            value: OPTION_CHECKBOXES[field].value,
+            label: OPTION_CHECKBOXES[field].label,
+            default: (DEFAULT_SELECTION[field] as string) === 'on'
+          }))
+        )
+    )
 
   const startTimeSelect = new StringSelectMenuBuilder()
     .setCustomId(CUSTOM_IDS.MODAL_START_TIME)
@@ -87,7 +98,7 @@ export function buildRecruitModal (): ModalBuilder {
   return new ModalBuilder()
     .setCustomId(CUSTOM_IDS.MODAL)
     .setTitle('スマブラ募集')
-    .addLabelComponents(modeLabel, gimmickLabel, itemLabel, startTimeLabel, textLabel)
+    .addLabelComponents(modeLabel, optionsLabel, startTimeLabel, textLabel)
 }
 
 /**

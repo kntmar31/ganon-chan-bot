@@ -7,8 +7,7 @@ export const CUSTOM_IDS = {
   LEAVE_BUTTON: `${FEATURE_KEY}:leave`,
   MODAL: `${FEATURE_KEY}:modal`,
   MODAL_MODE: `${FEATURE_KEY}:modal-mode`,
-  MODAL_GIMMICK: `${FEATURE_KEY}:modal-gimmick`,
-  MODAL_ITEM: `${FEATURE_KEY}:modal-item`,
+  MODAL_OPTIONS: `${FEATURE_KEY}:modal-options`,
   MODAL_START_TIME: `${FEATURE_KEY}:modal-start-time`,
   MODAL_TEXT_INPUT: `${FEATURE_KEY}:modal-text`
 } as const
@@ -40,6 +39,13 @@ export const PARTICIPANTS_FILE_PREFIX = 'participants'
 
 // 募集文が未入力のときに、募集メッセージの1行目に入れる文言
 export const DEFAULT_RECRUIT_TEXT = 'おる？'
+
+// ステージギミックとアイテムを、「あり」にするかどうかで選ぶチェックボックス(チェックあり: あり、チェックなし: なし)
+// キーは、募集内容(RecruitInput)の項目名。value は、送信値として届く値
+export const OPTION_CHECKBOXES = {
+  gimmick: { value: 'gimmick', label: 'ステージギミックあり' },
+  item: { value: 'item', label: 'アイテムあり' }
+} as const
 
 // 希望開始時間の選択肢(定義の順が、画面に表示される順になる。キー: 内部で使う値、値: 画面に表示するラベル)
 export const START_TIME_LABELS = {

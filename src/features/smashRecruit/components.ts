@@ -7,6 +7,7 @@ import {
   CUSTOM_IDS,
   DEFAULT_RECRUIT_TEXT,
   MODE_LABELS,
+  OPTION_CHECKBOXES,
   PARTICIPANTS_HEADING,
   START_TIME_LABELS,
   TOGGLE_LABELS
@@ -18,27 +19,29 @@ import {
   removeParticipant
 } from './participants.js'
 import { buildParticipantsImage, fetchImage } from './participantsImage.js'
-import { isModeKey, isStartTimeKey, isToggleKey } from './types.js'
-import type { RecruitInput } from './types.js'
+import { isModeKey, isStartTimeKey } from './types.js'
+import type { RecruitInput, ToggleKey } from './types.js'
 import { buildJoinRow } from './view.js'
 
 /**
  * モーダルの送信内容から、募集内容(4項目)を取り出す。
- * 送信値はクライアントから届くため、想定外の値が含まれていれば undefined を返す。
+ * 送信値はクライアントから届くため、対戦形式と希望開始時間に想定外の値が含まれていれば undefined を返す。
  *
  * @param interaction - モーダル送信のインタラクション
  * @returns 4項目がそろっていれば募集内容、そうでなければ undefined
  */
 function readRecruitInput (interaction: ModalSubmitInteraction): RecruitInput | undefined {
   const mode = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_MODE)
-  const gimmick = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_GIMMICK)
-  const item = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_ITEM)
   const [startTime] = interaction.fields.getStringSelectValues(CUSTOM_IDS.MODAL_START_TIME)
 
-  if (!isModeKey(mode) || !isToggleKey(gimmick) || !isToggleKey(item) || !isStartTimeKey(startTime)) {
-    return undefined
-  }
-  return { mode, gimmick, item, startTime }
+  if (!isModeKey(mode) || !isStartTimeKey(startTime)) return undefined
+
+  // ステージギミックとアイテムは、チェックされていれば「あり」、されていなければ「なし」
+  const checked = interaction.fields.getCheckboxGroup(CUSTOM_IDS.MODAL_OPTIONS)
+  const toggleOf = (field: 'gimmick' | 'item'): ToggleKey =>
+    checked.includes(OPTION_CHECKBOXES[field].value) ? 'on' : 'off'
+
+  return { mode, gimmick: toggleOf('gimmick'), item: toggleOf('item'), startTime }
 }
 
 /**
