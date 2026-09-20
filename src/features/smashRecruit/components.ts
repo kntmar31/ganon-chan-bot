@@ -173,14 +173,15 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
 
     const freeText = interaction.fields.getTextInputValue(CUSTOM_IDS.MODAL_TEXT_INPUT).trim()
 
-    // 1行目は「@everyone 募集文 (by 投稿者)」。募集文が未入力なら、決まった文言にする。
+    // 1行目は「@everyone 募集文」。募集文が未入力なら、決まった文言にする。
     // 最後の「・参加者」は、その下に付く参加者のアイコン画像の見出しになる
     const announcement = [
-      `@everyone ${freeText !== '' ? freeText : DEFAULT_RECRUIT_TEXT} (by ${interaction.user.toString()})`,
+      `@everyone ${freeText !== '' ? freeText : DEFAULT_RECRUIT_TEXT}`,
       `・対戦形式：${MODE_LABELS[input.mode]}`,
       `・ステージギミック：${TOGGLE_LABELS[input.gimmick]}`,
       `・アイテム：${TOGGLE_LABELS[input.item]}`,
       `・希望開始時間：${START_TIME_LABELS[input.startTime]}`,
+      `・募集した人：${interaction.user.toString()}`,
       PARTICIPANTS_HEADING
     ].join('\n')
 
