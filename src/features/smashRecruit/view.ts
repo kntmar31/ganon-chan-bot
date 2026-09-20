@@ -1,93 +1,66 @@
 import {
-  ActionRowBuilder,
-  StringSelectMenuBuilder,
-  ButtonBuilder,
-  ButtonStyle
+  LabelBuilder,
+  ModalBuilder,
+  RadioGroupBuilder,
+  TextInputBuilder,
+  TextInputStyle
 } from 'discord.js'
-import { CUSTOM_IDS, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
-import { isComplete } from './types.js'
-import type { RecruitDraft } from './types.js'
+import { CUSTOM_IDS, DEFAULT_SELECTION, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
 
 /**
- * 現在の選択状況を表すメッセージ本文を組み立てる。
+ * 選択肢のラベル定義から、必須のラジオグループを組み立てる。
+ * デフォルト値が最初から選択されており、送信時には必ず1つ選ばれている。
  *
- * @param state - 入力途中の状態
- * @returns 選択状況を含むメッセージ本文
+ * @param customId - ラジオグループの customId
+ * @param labels - 選択肢(キー: 内部で使う値、値: 画面に表示するラベル)
+ * @param defaultValue - 最初から選択しておく値
+ * @returns ラジオグループ
  */
-export function buildStatusLine (state: RecruitDraft): string {
-  const mode = state.mode !== undefined ? MODE_LABELS[state.mode] : '未選択'
-  const gimmick = state.gimmick !== undefined ? TOGGLE_LABELS[state.gimmick] : '未選択'
-  const item = state.item !== undefined ? TOGGLE_LABELS[state.item] : '未選択'
-
-  return [
-    '**スマブラ募集の条件を選んでください**',
-    `・対戦形式：${mode}`,
-    `・ステージギミック：${gimmick}`,
-    `・アイテム：${item}`,
-    '',
-    '3項目すべて選択すると「募集文を入力して投稿」が押せるようになります。'
-  ].join('\n')
+function buildRadioGroup (
+  customId: string,
+  labels: Record<string, string>,
+  defaultValue: string
+): RadioGroupBuilder {
+  return new RadioGroupBuilder()
+    .setCustomId(customId)
+    .setRequired(true)
+    .addOptions(
+      Object.entries(labels).map(([value, label]) => ({ value, label, default: value === defaultValue }))
+    )
 }
 
 /**
- * セレクトメニュー3つとボタン2つの行を組み立てる。
- * 選択済みの項目は default 指定にして、選択状態を画面に反映する。
+ * 募集内容を入力するモーダル(ポップアップ)を組み立てる。
+ * 対戦形式・ステージギミック・アイテムをラジオ選択し、募集文は任意で入力する。
  *
- * @param state - 入力途中の状態
- * @returns メッセージに添付するコンポーネント行
+ * @returns 募集内容の入力モーダル
  */
-export function buildComponents (
-  state: RecruitDraft
-): Array<ActionRowBuilder<StringSelectMenuBuilder> | ActionRowBuilder<ButtonBuilder>> {
-  const modeSelect = new StringSelectMenuBuilder()
-    .setCustomId(CUSTOM_IDS.SELECT_MODE)
-    .setPlaceholder('対戦形式を選択')
-    .addOptions(
-      Object.entries(MODE_LABELS).map(([value, label]) => ({
-        value,
-        label,
-        default: state.mode === value
-      }))
+export function buildRecruitModal (): ModalBuilder {
+  const modeLabel = new LabelBuilder()
+    .setLabel('対戦形式')
+    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_MODE, MODE_LABELS, DEFAULT_SELECTION.mode))
+
+  const gimmickLabel = new LabelBuilder()
+    .setLabel('ステージギミック')
+    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_GIMMICK, TOGGLE_LABELS, DEFAULT_SELECTION.gimmick))
+
+  const itemLabel = new LabelBuilder()
+    .setLabel('アイテム')
+    .setRadioGroupComponent(buildRadioGroup(CUSTOM_IDS.MODAL_ITEM, TOGGLE_LABELS, DEFAULT_SELECTION.item))
+
+  const textLabel = new LabelBuilder()
+    .setLabel('募集文（未入力でも投稿できます）')
+    .setTextInputComponent(
+      new TextInputBuilder()
+        .setCustomId(CUSTOM_IDS.MODAL_TEXT_INPUT)
+        .setStyle(TextInputStyle.Paragraph)
+        .setRequired(false)
+        .setMaxLength(300)
+        .setPlaceholder('例：初心者歓迎！20時から2時間くらい遊びます')
     )
 
-  const gimmickSelect = new StringSelectMenuBuilder()
-    .setCustomId(CUSTOM_IDS.SELECT_GIMMICK)
-    .setPlaceholder('ステージギミックの有無を選択')
-    .addOptions(
-      Object.entries(TOGGLE_LABELS).map(([value, label]) => ({
-        value,
-        label: `ギミック${label}`,
-        default: state.gimmick === value
-      }))
-    )
-
-  const itemSelect = new StringSelectMenuBuilder()
-    .setCustomId(CUSTOM_IDS.SELECT_ITEM)
-    .setPlaceholder('アイテムの有無を選択')
-    .addOptions(
-      Object.entries(TOGGLE_LABELS).map(([value, label]) => ({
-        value,
-        label: `アイテム${label}`,
-        default: state.item === value
-      }))
-    )
-
-  // 3項目すべて選択済みのときだけ、投稿ボタンを押せるようにする
-  const submitButton = new ButtonBuilder()
-    .setCustomId(CUSTOM_IDS.SUBMIT_BUTTON)
-    .setLabel('募集文を入力して投稿')
-    .setStyle(ButtonStyle.Primary)
-    .setDisabled(!isComplete(state))
-
-  const cancelButton = new ButtonBuilder()
-    .setCustomId(CUSTOM_IDS.CANCEL_BUTTON)
-    .setLabel('キャンセル')
-    .setStyle(ButtonStyle.Secondary)
-
-  return [
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(modeSelect),
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(gimmickSelect),
-    new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(itemSelect),
-    new ActionRowBuilder<ButtonBuilder>().addComponents(submitButton, cancelButton)
-  ]
+  return new ModalBuilder()
+    .setCustomId(CUSTOM_IDS.MODAL)
+    .setTitle('スマブラ募集')
+    .addLabelComponents(modeLabel, gimmickLabel, itemLabel, textLabel)
 }

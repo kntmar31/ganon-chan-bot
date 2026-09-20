@@ -1,23 +1,37 @@
-import { isComplete } from '../../../src/features/smashRecruit/types.js'
+import { isModeKey, isToggleKey } from '../../../src/features/smashRecruit/types.js'
 
-describe('isComplete', () => {
-  test('3項目すべて選択済みなら true', () => {
-    expect(isComplete({ mode: 'team', gimmick: 'on', item: 'off' })).toBe(true)
-  })
-
-  test('undefined なら false', () => {
-    expect(isComplete(undefined)).toBe(false)
-  })
-
-  test('空の状態なら false', () => {
-    expect(isComplete({})).toBe(false)
+describe('isModeKey', () => {
+  test.each(['individual', 'team', 'both'])('%s は対戦形式の選択値', (value) => {
+    expect(isModeKey(value)).toBe(true)
   })
 
   test.each([
-    ['mode', { gimmick: 'on', item: 'off' }],
-    ['gimmick', { mode: 'team', item: 'off' }],
-    ['item', { mode: 'team', gimmick: 'on' }]
-  ] as const)('%s だけ未選択なら false', (_missing, state) => {
-    expect(isComplete(state)).toBe(false)
+    ['未定義の文字列', 'unknown'],
+    ['空文字', ''],
+    ['あり/なしの値', 'on'],
+    ['オブジェクトのプロパティ名', 'toString'],
+    ['null', null],
+    ['undefined', undefined],
+    ['数値', 1]
+  ])('%s は対戦形式の選択値ではない', (_name, value) => {
+    expect(isModeKey(value)).toBe(false)
+  })
+})
+
+describe('isToggleKey', () => {
+  test.each(['on', 'off'])('%s は「あり/なし」の選択値', (value) => {
+    expect(isToggleKey(value)).toBe(true)
+  })
+
+  test.each([
+    ['未定義の文字列', 'maybe'],
+    ['空文字', ''],
+    ['対戦形式の値', 'team'],
+    ['オブジェクトのプロパティ名', 'constructor'],
+    ['null', null],
+    ['undefined', undefined],
+    ['真偽値', true]
+  ])('%s は「あり/なし」の選択値ではない', (_name, value) => {
+    expect(isToggleKey(value)).toBe(false)
   })
 })

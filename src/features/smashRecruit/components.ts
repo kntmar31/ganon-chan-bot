@@ -1,112 +1,25 @@
-import {
-  ModalBuilder,
-  ActionRowBuilder,
-  MessageFlags,
-  TextInputBuilder,
-  TextInputStyle
-} from 'discord.js'
-import type {
-  ButtonInteraction,
-  ModalSubmitInteraction,
-  StringSelectMenuInteraction
-} from 'discord.js'
-import { getDraft, setDraft, deleteDraft } from '../../utils/draftStore.js'
+import { MessageFlags } from 'discord.js'
+import type { ModalSubmitInteraction } from 'discord.js'
 import { defineComponent } from '../../types.js'
-import type { Component } from '../../types.js'
-import { CUSTOM_IDS, FEATURE_KEY, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
-import { isComplete } from './types.js'
-import type { RecruitDraft } from './types.js'
-import { buildStatusLine, buildComponents } from './view.js'
+import { CUSTOM_IDS, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
+import { isModeKey, isToggleKey } from './types.js'
+import type { RecruitInput } from './types.js'
 
 /**
- * セレクトメニューの選択を入力状態に反映し、メッセージを更新するハンドラを作る。
+ * モーダルの送信内容から、募集内容(3項目)を取り出す。
+ * 送信値はクライアントから届くため、想定外の値が含まれていれば undefined を返す。
  *
- * @param field - 更新する項目(mode / gimmick / item)
- * @param customId - このセレクトメニューの customId
- * @returns セレクトメニュー用のハンドラ
+ * @param interaction - モーダル送信のインタラクション
+ * @returns 3項目がそろっていれば募集内容、そうでなければ undefined
  */
-function createSelectHandler<K extends keyof RecruitDraft> (
-  field: K,
-  customId: string
-): Component {
-  return defineComponent<StringSelectMenuInteraction>({
-    customId,
+function readRecruitInput (interaction: ModalSubmitInteraction): RecruitInput | undefined {
+  const mode = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_MODE)
+  const gimmick = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_GIMMICK)
+  const item = interaction.fields.getRadioGroup(CUSTOM_IDS.MODAL_ITEM)
 
-    /**
-     * 選択された値を保存し、選択状況を反映してメッセージを更新する。
-     *
-     * @param interaction - セレクトメニューのインタラクション
-     */
-    async execute (interaction: StringSelectMenuInteraction): Promise<void> {
-      const state = getDraft<RecruitDraft>(FEATURE_KEY, interaction.user.id) ?? {}
-      state[field] = interaction.values[0] as RecruitDraft[K]
-      setDraft(FEATURE_KEY, interaction.user.id, state)
-
-      await interaction.update({
-        content: buildStatusLine(state),
-        components: buildComponents(state)
-      })
-    }
-  })
+  if (!isModeKey(mode) || !isToggleKey(gimmick) || !isToggleKey(item)) return undefined
+  return { mode, gimmick, item }
 }
-
-const selectModeHandler = createSelectHandler('mode', CUSTOM_IDS.SELECT_MODE)
-const selectGimmickHandler = createSelectHandler('gimmick', CUSTOM_IDS.SELECT_GIMMICK)
-const selectItemHandler = createSelectHandler('item', CUSTOM_IDS.SELECT_ITEM)
-
-const cancelButtonHandler = defineComponent<ButtonInteraction>({
-  customId: CUSTOM_IDS.CANCEL_BUTTON,
-
-  /**
-   * 入力状態を破棄し、キャンセルしたことを表示する。
-   *
-   * @param interaction - ボタンのインタラクション
-   */
-  async execute (interaction: ButtonInteraction): Promise<void> {
-    deleteDraft(FEATURE_KEY, interaction.user.id)
-    await interaction.update({
-      content: '募集をキャンセルしました。',
-      components: []
-    })
-  }
-})
-
-const submitButtonHandler = defineComponent<ButtonInteraction>({
-  customId: CUSTOM_IDS.SUBMIT_BUTTON,
-
-  /**
-   * 3項目がそろっていれば、募集文を入力するモーダルを表示する。
-   *
-   * @param interaction - ボタンのインタラクション
-   */
-  async execute (interaction: ButtonInteraction): Promise<void> {
-    const state = getDraft<RecruitDraft>(FEATURE_KEY, interaction.user.id)
-
-    if (!isComplete(state)) {
-      await interaction.reply({
-        content: '先に3項目すべてを選択してください。',
-        flags: MessageFlags.Ephemeral
-      })
-      return
-    }
-
-    const modal = new ModalBuilder()
-      .setCustomId(CUSTOM_IDS.MODAL)
-      .setTitle('募集文を入力（任意）')
-
-    const textInput = new TextInputBuilder()
-      .setCustomId(CUSTOM_IDS.MODAL_TEXT_INPUT)
-      .setLabel('募集文（未入力でも投稿できます）')
-      .setStyle(TextInputStyle.Paragraph)
-      .setRequired(false)
-      .setMaxLength(300)
-      .setPlaceholder('例：初心者歓迎！20時から2時間くらい遊びます')
-
-    modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(textInput))
-
-    await interaction.showModal(modal)
-  }
-})
 
 const modalHandler = defineComponent<ModalSubmitInteraction>({
   customId: CUSTOM_IDS.MODAL,
@@ -117,11 +30,11 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
    * @param interaction - モーダル送信のインタラクション
    */
   async execute (interaction: ModalSubmitInteraction): Promise<void> {
-    const state = getDraft<RecruitDraft>(FEATURE_KEY, interaction.user.id)
+    const input = readRecruitInput(interaction)
 
-    if (!isComplete(state)) {
+    if (input === undefined) {
       await interaction.reply({
-        content: '選択内容が見つかりませんでした。もう一度 /smash-recruit からやり直してください。',
+        content: '選択内容を読み取れませんでした。もう一度 /smash-recruit からやり直してください。',
         flags: MessageFlags.Ephemeral
       })
       return
@@ -133,9 +46,9 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
       '@everyone',
       `${interaction.user.toString()} がスマブラの対戦相手を募集しています！`,
       '',
-      `・対戦形式：${MODE_LABELS[state.mode]}`,
-      `・ステージギミック：${TOGGLE_LABELS[state.gimmick]}`,
-      `・アイテム：${TOGGLE_LABELS[state.item]}`,
+      `・対戦形式：${MODE_LABELS[input.mode]}`,
+      `・ステージギミック：${TOGGLE_LABELS[input.gimmick]}`,
+      `・アイテム：${TOGGLE_LABELS[input.item]}`,
       freeText !== '' ? `\n${freeText}` : ''
     ].join('\n')
 
@@ -155,8 +68,6 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
       allowedMentions: { parse: ['everyone'] }
     })
 
-    deleteDraft(FEATURE_KEY, interaction.user.id)
-
     await interaction.reply({
       content: '募集を投稿しました！',
       flags: MessageFlags.Ephemeral
@@ -164,11 +75,4 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
   }
 })
 
-export default [
-  selectModeHandler,
-  selectGimmickHandler,
-  selectItemHandler,
-  cancelButtonHandler,
-  submitButtonHandler,
-  modalHandler
-]
+export default [modalHandler]

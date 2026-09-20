@@ -1,93 +1,127 @@
-import { CUSTOM_IDS } from '../../../src/features/smashRecruit/constants.js'
-import { buildComponents, buildStatusLine } from '../../../src/features/smashRecruit/view.js'
+import { ComponentType } from 'discord.js'
+import {
+  CUSTOM_IDS,
+  DEFAULT_SELECTION,
+  MODE_LABELS,
+  TOGGLE_LABELS
+} from '../../../src/features/smashRecruit/constants.js'
+import { buildRecruitModal } from '../../../src/features/smashRecruit/view.js'
 
-/** ActionRowBuilder#toJSON() の結果のうち、テストで見る部分だけを表した型 */
-interface RowJson {
-  components: Array<Record<string, unknown>>
+/** モーダルの Label 1件分の JSON のうち、テストで見る部分だけを表した型 */
+interface LabelJson {
+  type: number
+  label: string
+  component: {
+    type: number
+    custom_id: string
+    required?: boolean
+    max_length?: number
+    options?: Array<{ label: string, value: string, default?: boolean }>
+  }
 }
 
 /**
- * buildComponents() の結果を、比較しやすい JSON の配列に変換する。
+ * buildRecruitModal() の結果を、比較しやすい JSON に変換する。
  *
- * @param state - 入力途中の状態
- * @returns 各行の JSON
+ * @returns モーダルの JSON
  */
-function buildRows (state: Parameters<typeof buildComponents>[0]): RowJson[] {
-  return buildComponents(state).map((row) => row.toJSON() as unknown as RowJson)
+function buildModalJson (): { custom_id: string, title: string, components: LabelJson[] } {
+  return buildRecruitModal().toJSON() as unknown as ReturnType<typeof buildModalJson>
 }
 
-describe('buildStatusLine', () => {
-  test('何も選択していなければ3項目とも「未選択」と表示する', () => {
-    const text = buildStatusLine({})
+describe('buildRecruitModal', () => {
+  test('モーダルの customId とタイトルが想定どおり', () => {
+    const modal = buildModalJson()
 
-    expect(text).toContain('・対戦形式：未選択')
-    expect(text).toContain('・ステージギミック：未選択')
-    expect(text).toContain('・アイテム：未選択')
+    expect(modal.custom_id).toBe(CUSTOM_IDS.MODAL)
+    expect(modal.title).toBe('スマブラ募集')
   })
 
-  test('選択済みの項目はラベルで表示する', () => {
-    const text = buildStatusLine({ mode: 'team', gimmick: 'on', item: 'off' })
+  test('対戦形式・ギミック・アイテム・募集文の4項目を、この順で並べる', () => {
+    const { components } = buildModalJson()
 
-    expect(text).toContain('・対戦形式：チーム戦')
-    expect(text).toContain('・ステージギミック：あり')
-    expect(text).toContain('・アイテム：なし')
+    expect(components.map((item) => item.component.custom_id)).toEqual([
+      CUSTOM_IDS.MODAL_MODE,
+      CUSTOM_IDS.MODAL_GIMMICK,
+      CUSTOM_IDS.MODAL_ITEM,
+      CUSTOM_IDS.MODAL_TEXT_INPUT
+    ])
+    expect(components.every((item) => item.type === ComponentType.Label)).toBe(true)
   })
 
-  test('一部だけ選択した場合は、未選択の項目だけ「未選択」になる', () => {
-    const text = buildStatusLine({ mode: 'both' })
+  test('3つの選択項目はラジオグループで、いずれも必須', () => {
+    const radioGroups = buildModalJson().components.slice(0, 3)
 
-    expect(text).toContain('・対戦形式：両方OK')
-    expect(text).toContain('・ステージギミック：未選択')
-    expect(text).toContain('・アイテム：未選択')
-  })
-})
-
-describe('buildComponents', () => {
-  test('セレクトメニュー3行とボタン1行の計4行を返す', () => {
-    const rows = buildRows({})
-
-    expect(rows).toHaveLength(4)
-    expect(rows.map((row) => row.components.length)).toEqual([1, 1, 1, 2])
+    expect(radioGroups.map((item) => item.component.type)).toEqual([
+      ComponentType.RadioGroup,
+      ComponentType.RadioGroup,
+      ComponentType.RadioGroup
+    ])
+    expect(radioGroups.map((item) => item.component.required)).toEqual([true, true, true])
   })
 
-  test('セレクトメニューの customId が想定どおり', () => {
-    const rows = buildRows({})
+  test('選択肢の値とラベルが定数の定義と一致する', () => {
+    const [mode, gimmick, item] = buildModalJson().components
 
-    expect(rows[0].components[0].custom_id).toBe(CUSTOM_IDS.SELECT_MODE)
-    expect(rows[1].components[0].custom_id).toBe(CUSTOM_IDS.SELECT_GIMMICK)
-    expect(rows[2].components[0].custom_id).toBe(CUSTOM_IDS.SELECT_ITEM)
+    /**
+     * 選択肢から、デフォルトの指定を除いた値とラベルだけを取り出す。
+     *
+     * @param label - モーダルの Label 1件分
+     * @returns 値とラベルの配列
+     */
+    const valuesAndLabels = (label: LabelJson): Array<{ value: string, label: string }> =>
+      (label.component.options ?? []).map(({ value, label }) => ({ value, label }))
+
+    expect(valuesAndLabels(mode)).toEqual(
+      Object.entries(MODE_LABELS).map(([value, label]) => ({ value, label }))
+    )
+    expect(valuesAndLabels(gimmick)).toEqual(
+      Object.entries(TOGGLE_LABELS).map(([value, label]) => ({ value, label }))
+    )
+    expect(valuesAndLabels(item)).toEqual(valuesAndLabels(gimmick))
   })
 
-  test('選択済みの選択肢だけ default になる', () => {
-    const rows = buildRows({ mode: 'team', gimmick: 'off' })
+  test('最初から、個人戦・ギミックなし・アイテムなしが選択されている', () => {
+    const [mode, gimmick, item] = buildModalJson().components
 
-    const defaultsOf = (row: RowJson): unknown[] =>
-      (row.components[0].options as Array<{ value: string, default: boolean }>)
-        .filter((option) => option.default)
-        .map((option) => option.value)
+    /**
+     * 最初から選択されている選択肢の値を取り出す。
+     *
+     * @param label - モーダルの Label 1件分
+     * @returns デフォルトで選択されている値の配列
+     */
+    const defaultsOf = (label: LabelJson): string[] =>
+      (label.component.options ?? []).filter((option) => option.default === true).map((option) => option.value)
 
-    expect(defaultsOf(rows[0])).toEqual(['team'])
-    expect(defaultsOf(rows[1])).toEqual(['off'])
-    expect(defaultsOf(rows[2])).toEqual([])
+    expect(defaultsOf(mode)).toEqual(['individual'])
+    expect(defaultsOf(gimmick)).toEqual(['off'])
+    expect(defaultsOf(item)).toEqual(['off'])
   })
 
-  test('3項目が未選択の間は、投稿ボタンが無効になる', () => {
-    const [, , , buttons] = buildRows({ mode: 'team', gimmick: 'on' })
+  test('ギミックとアイテムの選択肢は、「なし」「あり」の順に並ぶ', () => {
+    const [, gimmick, item] = buildModalJson().components
 
-    expect(buttons.components[0].custom_id).toBe(CUSTOM_IDS.SUBMIT_BUTTON)
-    expect(buttons.components[0].disabled).toBe(true)
+    expect(gimmick.component.options?.map((option) => option.label)).toEqual(['なし', 'あり'])
+    expect(item.component.options?.map((option) => option.label)).toEqual(['なし', 'あり'])
   })
 
-  test('3項目すべて選択済みなら、投稿ボタンが有効になる', () => {
-    const [, , , buttons] = buildRows({ mode: 'team', gimmick: 'on', item: 'off' })
-
-    expect(buttons.components[0].disabled).toBe(false)
+  test('デフォルトの値は、すべて選択肢に存在する', () => {
+    expect(Object.keys(MODE_LABELS)).toContain(DEFAULT_SELECTION.mode)
+    expect(Object.keys(TOGGLE_LABELS)).toContain(DEFAULT_SELECTION.gimmick)
+    expect(Object.keys(TOGGLE_LABELS)).toContain(DEFAULT_SELECTION.item)
   })
 
-  test('キャンセルボタンは常に有効', () => {
-    const [, , , buttons] = buildRows({})
+  test('項目名のラベルが表示される', () => {
+    const labels = buildModalJson().components.map((item) => item.label)
 
-    expect(buttons.components[1].custom_id).toBe(CUSTOM_IDS.CANCEL_BUTTON)
-    expect(buttons.components[1].disabled).toBeFalsy()
+    expect(labels.slice(0, 3)).toEqual(['対戦形式', 'ステージギミック', 'アイテム'])
+  })
+
+  test('募集文は任意入力の段落テキストで、300文字まで', () => {
+    const text = buildModalJson().components[3].component
+
+    expect(text.type).toBe(ComponentType.TextInput)
+    expect(text.required).toBe(false)
+    expect(text.max_length).toBe(300)
   })
 })
