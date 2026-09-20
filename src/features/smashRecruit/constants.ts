@@ -23,6 +23,9 @@ export const TOGGLE_LABELS = {
   on: 'あり'
 } as const
 
+// 募集文が未入力のときに、募集メッセージの1行目に入れる文言
+export const DEFAULT_RECRUIT_TEXT = 'おる？'
+
 // モーダルを開いたときに、最初から選択されている値
 export const DEFAULT_SELECTION = {
   mode: 'individual',

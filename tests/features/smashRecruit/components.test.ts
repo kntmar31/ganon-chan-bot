@@ -79,13 +79,11 @@ describe('smashRecruit components', () => {
 
       expect(send).toHaveBeenCalledWith({
         content: [
-          '@everyone',
-          '<@user-1> がスマブラの対戦相手を募集しています！',
+          '@everyone おる？ (by <@user-1>)',
           '',
           '・対戦形式：個人戦',
           '・ステージギミック：あり',
-          '・アイテム：なし',
-          ''
+          '・アイテム：なし'
         ].join('\n'),
         allowedMentions: { parse: ['everyone'] }
       })
@@ -111,7 +109,7 @@ describe('smashRecruit components', () => {
       expect(content).toContain('・アイテム：あり')
     })
 
-    test('募集文があれば、前後の空白を除いて末尾に付ける', async () => {
+    test('募集文があれば、前後の空白を除いて1行目の「おる？」の代わりに入れる', async () => {
       const send = jest.fn().mockResolvedValue(undefined)
       const interaction = mockModalInteraction('  初心者歓迎！  ', {
         channel: { isSendable: () => true, send }
@@ -120,7 +118,50 @@ describe('smashRecruit components', () => {
       await handlerOf(CUSTOM_IDS.MODAL).execute(interaction)
 
       const { content } = send.mock.calls[0][0] as { content: string }
-      expect(content.endsWith('・アイテム：なし\n\n初心者歓迎！')).toBe(true)
+      expect(content.split('\n')[0]).toBe('@everyone 初心者歓迎！ (by <@user-1>)')
+      expect(content).not.toContain('おる？')
+    })
+
+    test('募集文があっても、選択内容の3行は末尾に残り、募集文は重複して載らない', async () => {
+      const send = jest.fn().mockResolvedValue(undefined)
+      const interaction = mockModalInteraction('初心者歓迎！', {
+        channel: { isSendable: () => true, send }
+      })
+
+      await handlerOf(CUSTOM_IDS.MODAL).execute(interaction)
+
+      const { content } = send.mock.calls[0][0] as { content: string }
+      expect(content).toBe([
+        '@everyone 初心者歓迎！ (by <@user-1>)',
+        '',
+        '・対戦形式：個人戦',
+        '・ステージギミック：あり',
+        '・アイテム：なし'
+      ].join('\n'))
+    })
+
+    test('空白だけの募集文は、未入力と同じ扱いで「おる？」になる', async () => {
+      const send = jest.fn().mockResolvedValue(undefined)
+      const interaction = mockModalInteraction('   \n  ', {
+        channel: { isSendable: () => true, send }
+      })
+
+      await handlerOf(CUSTOM_IDS.MODAL).execute(interaction)
+
+      const { content } = send.mock.calls[0][0] as { content: string }
+      expect(content.split('\n')[0]).toBe('@everyone おる？ (by <@user-1>)')
+    })
+
+    test('改行を含む募集文は、そのまま1行目の位置に入り、末尾に (by 投稿者) が付く', async () => {
+      const send = jest.fn().mockResolvedValue(undefined)
+      const interaction = mockModalInteraction('初心者歓迎！\n20時から', {
+        channel: { isSendable: () => true, send }
+      })
+
+      await handlerOf(CUSTOM_IDS.MODAL).execute(interaction)
+
+      const { content } = send.mock.calls[0][0] as { content: string }
+      expect(content.startsWith('@everyone 初心者歓迎！\n20時から (by <@user-1>)\n\n・対戦形式：')).toBe(true)
     })
 
     test.each([
