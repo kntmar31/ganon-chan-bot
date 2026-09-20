@@ -174,7 +174,6 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
     // 最後の「・参加者」は、その下に付く参加者のアイコン画像の見出しになる
     const announcement = [
       `@everyone ${freeText !== '' ? freeText : DEFAULT_RECRUIT_TEXT} (by ${interaction.user.toString()})`,
-      '',
       `・対戦形式：${MODE_LABELS[input.mode]}`,
       `・ステージギミック：${TOGGLE_LABELS[input.gimmick]}`,
       `・アイテム：${TOGGLE_LABELS[input.item]}`,
