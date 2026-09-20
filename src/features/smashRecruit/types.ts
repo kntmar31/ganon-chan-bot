@@ -1,4 +1,4 @@
-import { MODE_LABELS, TOGGLE_LABELS } from './constants.js'
+import { MODE_LABELS, START_TIME_LABELS, TOGGLE_LABELS } from './constants.js'
 
 /** 対戦形式の選択値 */
 export type ModeKey = keyof typeof MODE_LABELS
@@ -6,11 +6,15 @@ export type ModeKey = keyof typeof MODE_LABELS
 /** 「あり/なし」の選択値 */
 export type ToggleKey = keyof typeof TOGGLE_LABELS
 
-/** モーダルで選択された募集内容(3項目とも選択済み) */
+/** 希望開始時間の選択値 */
+export type StartTimeKey = keyof typeof START_TIME_LABELS
+
+/** モーダルで選択された募集内容(4項目とも選択済み) */
 export interface RecruitInput {
   mode: ModeKey
   gimmick: ToggleKey
   item: ToggleKey
+  startTime: StartTimeKey
 }
 
 /**
@@ -25,11 +29,11 @@ export function isModeKey (value: unknown): value is ModeKey {
 }
 
 /**
- * 値が「あり/なし」の選択値かどうかを判定する。
+ * 値が希望開始時間の選択値かどうかを判定する。
  *
  * @param value - 判定する値
- * @returns 「あり/なし」の選択値なら true
+ * @returns 希望開始時間の選択値なら true
  */
-export function isToggleKey (value: unknown): value is ToggleKey {
-  return typeof value === 'string' && Object.hasOwn(TOGGLE_LABELS, value)
+export function isStartTimeKey (value: unknown): value is StartTimeKey {
+  return typeof value === 'string' && Object.hasOwn(START_TIME_LABELS, value)
 }
