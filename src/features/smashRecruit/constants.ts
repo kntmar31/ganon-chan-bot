@@ -27,8 +27,8 @@ export const TOGGLE_LABELS = {
 
 // 参加者のアイコン画像の設定(単位: px。Discord 上では、幅に合わせて縮小して表示される)
 // 参加人数に上限はなく、アイコンは1列に AVATARS_PER_ROW 人ずつ並べ、あふれたら次の列に折り返す
-export const AVATAR_SIZE = 96
-export const AVATAR_GAP = 12
+export const AVATAR_SIZE = 64
+export const AVATAR_GAP = 8
 export const AVATARS_PER_ROW = 8
 
 // 参加者のアイコン画像のすぐ上に表示する、見出しの文言
