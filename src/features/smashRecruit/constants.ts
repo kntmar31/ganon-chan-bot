@@ -17,10 +17,10 @@ export const MODE_LABELS = {
   both: '両方OK'
 } as const
 
-// ステージギミック・アイテムの「あり/なし」の選択肢
+// ステージギミック・アイテムの「あり/なし」の選択肢(定義の順が、画面に表示される順になる)
 export const TOGGLE_LABELS = {
-  on: 'あり',
-  off: 'なし'
+  off: 'なし',
+  on: 'あり'
 } as const
 
 // モーダルを開いたときに、最初から選択されている値

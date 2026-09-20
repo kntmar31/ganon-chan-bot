@@ -98,6 +98,13 @@ describe('buildRecruitModal', () => {
     expect(defaultsOf(item)).toEqual(['off'])
   })
 
+  test('ギミックとアイテムの選択肢は、「なし」「あり」の順に並ぶ', () => {
+    const [, gimmick, item] = buildModalJson().components
+
+    expect(gimmick.component.options?.map((option) => option.label)).toEqual(['なし', 'あり'])
+    expect(item.component.options?.map((option) => option.label)).toEqual(['なし', 'あり'])
+  })
+
   test('デフォルトの値は、すべて選択肢に存在する', () => {
     expect(Object.keys(MODE_LABELS)).toContain(DEFAULT_SELECTION.mode)
     expect(Object.keys(TOGGLE_LABELS)).toContain(DEFAULT_SELECTION.gimmick)
