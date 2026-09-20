@@ -85,14 +85,14 @@ export function buildRecruitModal (): ModalBuilder {
     .setStringSelectMenuComponent(startTimeSelect)
 
   const textLabel = new LabelBuilder()
-    .setLabel('募集文（未入力でも投稿できます）')
+    .setLabel('募集文（未入力の場合は例文のままになります）')
     .setTextInputComponent(
       new TextInputBuilder()
         .setCustomId(CUSTOM_IDS.MODAL_TEXT_INPUT)
         .setStyle(TextInputStyle.Paragraph)
         .setRequired(false)
         .setMaxLength(300)
-        .setPlaceholder('おる？')
+        .setPlaceholder('例：おる？')
     )
 
   return new ModalBuilder()
