@@ -67,7 +67,7 @@ async function buildParticipantsAttachment (
  * @returns アイコン画像。取得できなければ null
  */
 async function fetchAvatar (user: User): Promise<Buffer | null> {
-  return await fetchImage(user.displayAvatarURL({ extension: 'png', size: 128, forceStatic: true }))
+  return await fetchImage(user.displayAvatarURL({ extension: 'png', size: 256, forceStatic: true }))
 }
 
 /**
