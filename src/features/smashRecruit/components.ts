@@ -1,7 +1,7 @@
 import { MessageFlags } from 'discord.js'
 import type { ModalSubmitInteraction } from 'discord.js'
 import { defineComponent } from '../../types.js'
-import { CUSTOM_IDS, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
+import { CUSTOM_IDS, DEFAULT_RECRUIT_TEXT, MODE_LABELS, TOGGLE_LABELS } from './constants.js'
 import { isModeKey, isToggleKey } from './types.js'
 import type { RecruitInput } from './types.js'
 
@@ -42,14 +42,13 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
 
     const freeText = interaction.fields.getTextInputValue(CUSTOM_IDS.MODAL_TEXT_INPUT).trim()
 
+    // 1行目は「@everyone 募集文 (by 投稿者)」。募集文が未入力なら、決まった文言にする
     const announcement = [
-      '@everyone',
-      `${interaction.user.toString()} がスマブラの対戦相手を募集しています！`,
+      `@everyone ${freeText !== '' ? freeText : DEFAULT_RECRUIT_TEXT} (by ${interaction.user.toString()})`,
       '',
       `・対戦形式：${MODE_LABELS[input.mode]}`,
       `・ステージギミック：${TOGGLE_LABELS[input.gimmick]}`,
-      `・アイテム：${TOGGLE_LABELS[input.item]}`,
-      freeText !== '' ? `\n${freeText}` : ''
+      `・アイテム：${TOGGLE_LABELS[input.item]}`
     ].join('\n')
 
     const recruitChannelId = process.env.RECRUIT_CHANNEL_ID
