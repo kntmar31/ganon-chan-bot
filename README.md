@@ -22,10 +22,11 @@ ganon-chan-bot/
 ├── dist/                    # tsc のビルド成果物（git管理外）。実行時はこちらを読み込む
 └── src/
     ├── index.ts             # エントリーポイント。interactionをcustomId/コマンド名で振り分け、機能が受け取るイベントを登録するだけ
-    ├── deploy-commands.ts   # 全機能のスラッシュコマンドを自動収集して登録
+    ├── deploy-commands.ts   # 全機能のスラッシュコマンドを自動収集して登録（GUILD_ID があればそのサーバー限定、空なら全サーバー共通）
     ├── config.ts            # BOT_NAMEなど、Bot全体に関わる設定値
     ├── types.ts             # Command / Component / EventHandler / Feature など、機能共通の型
     ├── utils/
+    │   ├── deployTarget.ts  # スラッシュコマンドの登録先（サーバー限定か、全サーバー共通か）を決める
     │   ├── draftStore.ts    # 機能横断で使う、ユーザーごとの一時入力状態ストア
     │   └── keyedLock.ts     # 同じキー(例: メッセージ)への処理を、1つずつ順番に実行する仕組み
     └── features/
@@ -108,7 +109,7 @@ cp .env.example .env
 
 - `DISCORD_TOKEN`：Botのトークン
 - `CLIENT_ID`：Developer Portalの「General Information」にあるApplication ID
-- `GUILD_ID`：動作確認したいサーバーのID（サーバーを右クリック→「IDをコピー」／開発者モードが必要）
+- `GUILD_ID`（任意）：スラッシュコマンドの登録先。指定すると、そのサーバーだけに登録します（すぐ反映されます。開発中向き。サーバーを右クリック→「IDをコピー」／開発者モードが必要）。**空にすると、全サーバー共通で登録します**（本番向き。下の「スラッシュコマンドの登録先」を参照）
 - `RECRUIT_CHANNEL_ID`（任意）：募集メッセージを固定チャンネルに投稿したい場合のみ設定。空欄ならコマンドを打ったチャンネルに投稿されます
 - `RECRUIT_END_EMOJI_ID`（任意）：募集を終了する、サーバー独自の絵文字のID。複数ある場合は、カンマで区切ります（下の「募集の終了」を参照）
 
@@ -127,6 +128,26 @@ npm start
 ```
 
 どちらも、途中のコマンドが失敗した場合はそこで止まり、Bot は起動しない。
+
+### スラッシュコマンドの登録先
+
+`npm run deploy-commands` は、`GUILD_ID` の有無で、登録先を切り替えます。
+
+| `GUILD_ID` | 登録先 | 向いている場面 |
+| --- | --- | --- |
+| 指定する | そのサーバーだけ（すぐ反映される） | 開発中（テスト用サーバー） |
+| **空にする** | **Bot を入れたすべてのサーバー共通**（反映に時間がかかることがある） | 本番（サーバーが増えても、再登録が要らない） |
+
+- 実行のたびに、ログに `登録先: ...` と表示されます。
+- 本番の Bot（Railway など）は `GUILD_ID` を空にして、デプロイのたびに `npm run deploy-commands` を実行すれば、Bot を入れたすべてのサーバーで、コマンドが使えます。
+- 開発用のアプリと本番用のアプリは、別の Bot（別の `CLIENT_ID`）にしておくと、登録先が混ざりません。
+- **重複して表示される場合:** 同じ Bot に、サーバー限定のコマンドと、全サーバー共通のコマンドの両方が登録されていると、同じコマンドが 2 つ並んで見えます。
+  全サーバー共通に切り替えたときは、以前登録したサーバー限定のコマンドを、次のようにして消します（`<サーバーID>` は、以前登録したサーバーのID。`.env` に、その Bot のトークンと `CLIENT_ID` が入っている状態で実行します）。
+  ```bash
+  node -e "require('dotenv').config(); const { REST, Routes } = require('discord.js'); new REST({ version: '10' }).setToken(process.env.DISCORD_TOKEN).put(Routes.applicationGuildCommands(process.env.CLIENT_ID, '<サーバーID>'), { body: [] }).then(() => console.log('削除しました'))"
+  ```
+- 全サーバー共通のコマンドは、登録してから、すべてのサーバーに反映されるまで、時間がかかることがあります。
+- Bot を新しいサーバーに入れても、スラッシュコマンドが出ない場合は、招待のときに `applications.commands` のスコープが付いていたかも確認してください（上の招待URLに含まれています）。
 `npm start` は起動のたびにビルドするため、常に最新のコードが動く（`dist/` が古いまま動くことがない）。
 
 Bot は TypeScript をビルドした `dist/` を実行する。ビルドしない環境（`typescript` を入れない本番環境など）では、
