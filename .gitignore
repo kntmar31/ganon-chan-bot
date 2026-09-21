@@ -6,7 +6,7 @@ dist/
 
 # 秘密情報（Botトークンなど）。雛形は .env.example を使う
 .env
-.env.local
+.env.prod
 
 # macOS
 .DS_Store
