@@ -76,7 +76,8 @@ export function isEndEmoji (emoji: ReactionEmoji, customEmojiIds: readonly strin
 /**
  * 募集メッセージに、募集した人が、決めた絵文字のリアクションを付けたら、
  * メッセージの内容を、その絵文字だけに書き換える(元には戻せない)。
- * 参加者のアイコン画像とボタンも外す。それ以外の人や、それ以外の絵文字には、何もしない。
+ * 参加者のアイコン画像とボタンも外し、その投稿に付いているリアクションもすべて外す。
+ * それ以外の人や、それ以外の絵文字には、何もしない。
  *
  * @param reaction - 付いたリアクション
  * @param user - リアクションを付けた人
@@ -100,6 +101,18 @@ export async function handleReactionAdd (
     if (parsePosterId(message.content) !== user.id) return
 
     await message.edit({ content: reaction.emoji.toString(), attachments: [], components: [] })
+
+    // 書き換えた投稿に、リアクションを残さない(募集した人が付けたものも、他の人が付けたものも、すべて外す)。
+    // 外せなくても、書き換えは済んでいるため、原因が分かる警告を出すだけにする
+    try {
+      await message.reactions.removeAll()
+    } catch (error) {
+      console.warn(
+        '[警告] 募集メッセージを書き換えましたが、リアクションを外せませんでした。' +
+        'Bot のロールに「メッセージの管理」権限が必要です',
+        error
+      )
+    }
   })
 }
 
