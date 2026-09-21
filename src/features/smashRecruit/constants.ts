@@ -35,6 +35,13 @@ export const AVATAR_SIZE = 192
 export const AVATAR_GAP = 24
 export const AVATARS_PER_ROW = 8
 
+// 募集メッセージの「募集した人」の行の見出し(この行から、投稿者を読み取る)
+export const POSTER_LINE_PREFIX = '・募集した人：'
+
+// 募集した人が付けると、募集メッセージを、その絵文字だけに書き換える絵文字(標準の絵文字)
+// サーバー独自の絵文字は、サーバーごとに ID が違うため、環境変数 RECRUIT_END_EMOJI_ID で指定する
+export const END_EMOJIS = ['💣'] as const
+
 // 参加者のアイコン画像のすぐ上に表示する、見出しの文言
 export const PARTICIPANTS_HEADING = '・参加者'
 

@@ -13,9 +13,12 @@
   - ts-standard はテストファイルを対象外にしている
 
 ## Bot の実装ルール
-- 機能は `src/features/<機能名>/` に1機能1フォルダで追加する。`src/index.ts` や `src/deploy-commands.ts` は書き換えない
-- customId は `機能名:アクション名` で統一する(例: `smash-recruit:submit`)
+- 機能は `src/features/<機能名>/` に1機能1フォルダで追加する。機能の追加のために、`src/index.ts` や `src/deploy-commands.ts` は書き換えない
+  - コマンド・コンポーネント・イベントと、それに必要なインテント・partials は、機能フォルダの `index.ts` が default export する `Feature` に宣言する
+  - `Feature` に持たせる項目の種類を増やすなど、共通の仕組み(`src/index.ts`、`src/types.ts`、`src/features/index.ts`)に関わる変更は、ユーザーの許可を得てから行う
+- customId は `機能名:アクション名` で統一する(例: `smash-recruit:join`)
 - セレクトメニュー・ボタン・モーダルのハンドラは `defineComponent()`(`src/types.ts`)で包む
+- Client のイベント(リアクションなど)のハンドラは `defineEvent()`(`src/types.ts`)で包み、`Feature` の `events` に宣言する。必要なインテントは `intents`、キャッシュにないデータのための設定は `partials` に宣言する
 - 本人だけに見えるメッセージは `flags: MessageFlags.Ephemeral` で指定する(`ephemeral: true` は非推奨)
 - Bot 名は `src/config.ts` の `BOT_NAME` に集約する。コード内に直接書かない
 - ユーザーごとの一時入力状態は `src/utils/draftStore.ts` を使う(メモリ上のみ。再起動で消える)
@@ -27,7 +30,7 @@
 - `src/features/index.ts`(機能ローダー)は `import.meta` を使うため、Jest では扱えずテスト対象外
 
 ## 注意点
-- `.env` には Bot のトークンが入っている。内容を読み取らない・出力しない・コミットしない(`.gitignore` で除外済み)
+- `.env` には Bot のトークンが入っている。内容を読み取らない・出力しない・コミットしない(`.gitignore` で、`.env` と `.env.prod` を除外済み。環境変数のファイルを別の名前で作る場合は、`.gitignore` への追加も忘れないこと)
 - Discord 上での動作確認にはトークンが必要なため、実機確認はユーザーに依頼する。確認していない場合は、その旨を PR に明記する
 - 変更時は必ず Pull Request を作ること
 - Pull Request では必ず Label を設定すること

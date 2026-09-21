@@ -7,6 +7,17 @@ import { AVATAR_GAP, AVATAR_SIZE, AVATARS_PER_ROW, CUSTOM_IDS } from '../../../s
 /** 募集した人(モーダルを送信した人)のユーザー ID */
 const POSTER_ID = '100'
 
+/** 投稿済みの募集メッセージの本文(「・募集した人」の行を含む) */
+const RECRUIT_CONTENT = [
+  '@everyone おる？',
+  '・対戦形式：個人戦',
+  '・ステージギミック：なし',
+  '・アイテム：なし',
+  '・希望開始時間：23:00',
+  `・募集した人：<@${POSTER_ID}>`,
+  '・参加者'
+].join('\n')
+
 /** 1列ぶん(8人ぶん)の画像の幅 */
 const ROW_WIDTH = AVATARS_PER_ROW * AVATAR_SIZE + (AVATARS_PER_ROW - 1) * AVATAR_GAP
 
@@ -450,10 +461,11 @@ describe('smashRecruit components', () => {
      * fetchReply が返す、募集メッセージのモックを作る。
      *
      * @param fileName - 投稿に付いている参加者画像のファイル名(付いていなければ undefined)
+     * @param content - 投稿の本文(省略すると、「・募集した人」の行を含む、募集メッセージの本文)
      * @returns 募集メッセージのモック
      */
-    function repliedMessage (fileName: string | undefined): any {
-      return { attachments: { first: () => fileName === undefined ? undefined : { name: fileName } } }
+    function repliedMessage (fileName: string | undefined, content: string = RECRUIT_CONTENT): any {
+      return { content, attachments: { first: () => fileName === undefined ? undefined : { name: fileName } } }
     }
 
     /**
@@ -565,6 +577,32 @@ describe('smashRecruit components', () => {
         const deferOrder = interaction.deferUpdate.mock.invocationCallOrder[0]
         expect(deferOrder).toBeLessThan(interaction.fetchReply.mock.invocationCallOrder[0])
         expect(deferOrder).toBeLessThan(interaction.editReply.mock.invocationCallOrder[0])
+      })
+
+      test.each([
+        ['参加', CUSTOM_IDS.JOIN_BUTTON],
+        ['取り消し', CUSTOM_IDS.LEAVE_BUTTON]
+      ])('絵文字だけに書き換えられた(終了した)募集では、%sできず、本人にだけ案内して、投稿は書き換えない', async (_name, customId) => {
+        const interaction = mockButtonInteraction('200', undefined)
+        interaction.fetchReply.mockResolvedValue(repliedMessage('participants-100-200.png', '💣'))
+
+        await handlerOf(customId).execute(interaction)
+
+        expect(interaction.followUp).toHaveBeenCalledWith({
+          content: 'この募集は終了しています。',
+          flags: MessageFlags.Ephemeral
+        })
+        expect(interaction.editReply).not.toHaveBeenCalled()
+        expect(interaction.client.users.fetch).not.toHaveBeenCalled()
+      })
+
+      test('「募集した人」の行が、本文にない投稿(想定外の投稿)は、終了した募集と同じ扱いになる', async () => {
+        const interaction = mockButtonInteraction('200', undefined)
+        interaction.fetchReply.mockResolvedValue(repliedMessage('participants-100.png', '@everyone おる？'))
+
+        await handlerOf(CUSTOM_IDS.JOIN_BUTTON).execute(interaction)
+
+        expect(interaction.editReply).not.toHaveBeenCalled()
       })
 
       test('他の参加者のユーザー情報は取得し、押した本人は取得し直さない', async () => {

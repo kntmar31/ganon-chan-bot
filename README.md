@@ -21,23 +21,25 @@ ganon-chan-bot/
 ├── .env.example
 ├── dist/                    # tsc のビルド成果物（git管理外）。実行時はこちらを読み込む
 └── src/
-    ├── index.ts             # エントリーポイント。interactionをcustomId/コマンド名で振り分けるだけ
+    ├── index.ts             # エントリーポイント。interactionをcustomId/コマンド名で振り分け、機能が受け取るイベントを登録するだけ
     ├── deploy-commands.ts   # 全機能のスラッシュコマンドを自動収集して登録
     ├── config.ts            # BOT_NAMEなど、Bot全体に関わる設定値
-    ├── types.ts             # Command / Component / Feature など、機能共通の型
+    ├── types.ts             # Command / Component / EventHandler / Feature など、機能共通の型
     ├── utils/
     │   ├── draftStore.ts    # 機能横断で使う、ユーザーごとの一時入力状態ストア
     │   └── keyedLock.ts     # 同じキー(例: メッセージ)への処理を、1つずつ順番に実行する仕組み
     └── features/
-        ├── index.ts         # features配下のフォルダを自動スキャンして読み込むローダー
+        ├── index.ts         # features配下のフォルダを自動スキャンして読み込み、コマンド・イベント・必要なインテントなどを集めるローダー
         └── smashRecruit/    # 「募集機能」一式（1機能1フォルダ）
-            ├── index.ts         # この機能のcommands/componentsをまとめて返す窓口
+            ├── index.ts         # この機能のcommands/components/events/intents/partialsをまとめて返す窓口
             ├── constants.ts     # customIdや選択肢ラベルなどの定数
             ├── types.ts         # 募集内容(RecruitInput)などの型と、選択値の判定
             ├── command.ts       # /smash-recruit の定義と、モーダルの表示
             ├── components.ts    # モーダル送信時の処理(募集メッセージの投稿)と、参加・取り消しボタンの処理
             ├── participants.ts  # 参加者の一覧の扱い(添付ファイル名との相互変換、参加・取り消しの判定)
             ├── participantsImage.ts  # 参加者のアイコンを横一列に並べた画像の合成と、アイコンのダウンロード
+            ├── poster.ts        # 募集メッセージの「募集した人」の行の組み立てと、そこからの投稿者の読み取り
+            ├── reactions.ts     # 募集した人が絵文字のリアクションを付けたときの、募集の終了(絵文字だけへの書き換え)
             └── view.ts          # 募集内容を入力するモーダルと、参加・取り消しボタンの組み立てロジック
 ```
 
@@ -46,6 +48,7 @@ ganon-chan-bot/
 - **機能ごとにフォルダを分ける**：セレクトメニューやボタンは、その機能のスラッシュコマンドと常にセットで使うため、
   種類別（commands/buttons/...）ではなく機能別にまとめている。1つの機能を触るときに1フォルダ内で完結する。
 - **`src/features/index.ts` はフォルダを自動スキャンするだけ**：新機能を追加してもこのファイルを編集する必要はない。
+  各機能が必要とするインテントと partials も、ここで集められ、`src/index.ts` が Client を作るときに使われる。
 - **customIdは `機能名:アクション名` で統一**（例: `smash-recruit:join`）：機能が増えてもcustomIdが衝突しない。
 - **一時状態は `draftStore.ts` に集約**：`getDraft(featureKey, userId)` のように機能名でネームスペースを分けるので、
   複数機能が同時に「選択中の入力」を持っても混ざらない。
@@ -57,9 +60,11 @@ ganon-chan-bot/
    （小さい機能ならファイルを分けず1〜2ファイルにまとめても構わない）
 3. `index.ts` で `export default { commands: [...], components: [...] }`（型は `Feature`）を返す
    - セレクトメニュー・ボタン・モーダルのハンドラは `defineComponent()`（`src/types.ts`）で包む
+   - リアクションなど、Client のイベントを受け取る場合は、ハンドラを `defineEvent()`（`src/types.ts`）で包んで `events` に入れ、
+     必要なゲートウェイインテントを `intents`、キャッシュにないデータのイベントを受け取るための設定を `partials` に書く
 4. `npm run build` → `npm run deploy-commands` を実行すればコマンドが自動的に登録される
 
-`src/index.ts` や `src/deploy-commands.ts` を書き換える必要はない。
+`src/index.ts` や `src/deploy-commands.ts` を書き換える必要はない（イベントを受け取る機能でも、`Feature` に書くだけでよい）。
 
 ## 1. Botアカウントの準備
 
@@ -67,13 +72,13 @@ ganon-chan-bot/
 2. 左メニュー「Bot」→「Add Bot」でBotを作成し、「Reset Token」でトークンを取得
 3. 左メニュー「OAuth2」→「URL Generator」で
    - SCOPES: `bot`, `applications.commands`
-   - BOT PERMISSIONS: `View Channels`, `Send Messages`, `Attach Files`, `Mention Everyone`
+   - BOT PERMISSIONS: `View Channels`, `Send Messages`, `Attach Files`, `Mention Everyone`, `Read Message History`, `Manage Messages`
    を選び、生成されたURLからBotをサーバーに招待
 
-権限の値は `166912` で、招待URLは次の形になる（`<CLIENT_ID>` は Application ID）。
+権限の値は `240640` で、招待URLは次の形になる（`<CLIENT_ID>` は Application ID）。
 
 ```
-https://discord.com/oauth2/authorize?client_id=<CLIENT_ID>&scope=bot+applications.commands&permissions=166912
+https://discord.com/oauth2/authorize?client_id=<CLIENT_ID>&scope=bot+applications.commands&permissions=240640
 ```
 
 | 権限 | 使う場面 |
@@ -82,10 +87,15 @@ https://discord.com/oauth2/authorize?client_id=<CLIENT_ID>&scope=bot+application
 | `Send Messages` | 募集メッセージを投稿する |
 | `Attach Files` | 参加者のアイコン画像を添付する |
 | `Mention Everyone` | `@everyone` で通知する |
+| `Read Message History` | 絵文字のリアクションが付いた募集メッセージの、最新の内容を読み取る |
+| `Manage Messages` | 募集を絵文字だけに書き換えたあと、その投稿のリアクションをすべて外す（他の人が付けたリアクションを外すために必要） |
 
 すでに招待済みのサーバーでは、サーバー設定（またはチャンネル設定）でBotのロールに不足している権限を追加する。
 チャンネルごとの権限設定で上書きされていると、そちらが優先される（特に `Mention Everyone` は上書きされやすい）。
 `Use Slash Commands` は、コマンドを実行する人側の権限で、Bot 側には不要。
+`Manage Messages` は、他の人のメッセージの削除やピン留めもできる、広い権限。コードは、募集の終了のときに、リアクションを外す用途にしか使わない。
+`Manage Messages` がなくても、募集の書き換えは動くが、リアクションは外れず、Bot のログに警告が出る。
+Developer Portal の「Privileged Gateway Intents」（Presence / Server Members / Message Content）は、すべてオフのままでよい。
 
 ## 2. セットアップ
 
@@ -100,6 +110,7 @@ cp .env.example .env
 - `CLIENT_ID`：Developer Portalの「General Information」にあるApplication ID
 - `GUILD_ID`：動作確認したいサーバーのID（サーバーを右クリック→「IDをコピー」／開発者モードが必要）
 - `RECRUIT_CHANNEL_ID`（任意）：募集メッセージを固定チャンネルに投稿したい場合のみ設定。空欄ならコマンドを打ったチャンネルに投稿されます
+- `RECRUIT_END_EMOJI_ID`（任意）：募集を終了する、サーバー独自の絵文字のID。複数ある場合は、カンマで区切ります（下の「募集の終了」を参照）
 
 ## 3. コマンド登録＆起動
 
@@ -169,6 +180,21 @@ Discord は、画像を PC では最大 550px 幅、スマホでは画面の幅�
 画面上のアイコンの大きさは、アイコンと画像の幅の比率で決まり、PC で約 62px、スマホで約 37px になります
 （`constants.ts` の `AVATAR_SIZE` / `AVATAR_GAP` / `AVATARS_PER_ROW` で調整できます）。
 
+### 募集の終了（絵文字のリアクション）
+
+募集した人が、決めた絵文字のリアクションを、自分の募集メッセージに付けると、**メッセージの内容が、その絵文字だけに書き換わります。**
+
+- 参加者のアイコン画像とボタンも外れ、その投稿に付いているリアクションも、すべて外れます（**元には戻せません**）
+- 募集した人以外が付けた場合や、他の絵文字、他の人の投稿には、何も起きません
+- 使える絵文字は、標準の絵文字 💣（設定不要）と、環境変数 `RECRUIT_END_EMOJI_ID` で指定した、サーバー独自の絵文字です
+  - 指定するのは、絵文字の**ID**です。複数ある場合は、カンマで区切ります（例: `RECRUIT_END_EMOJI_ID=123456789012345678,987654321098765432`）
+  - IDは、Discord のメッセージ入力欄に `\:絵文字名:` と入力して送信すると、`<:絵文字名:ID>` の形で表示されます。ID の数字を使います
+  - 読み取れない値（区切りがカンマでない、など）があると、Bot の起動時に警告が出て、その値は無視されます
+  - 設定を変えたら、Bot を再起動します
+- 書き換え済みの募集で、古い画面から「参加」「取り消し」が押されても、「この募集は終了しています。」と本人にだけ表示されます
+- 募集した人は、募集メッセージの「・募集した人」の行から読み取ります。この行を、他の場所で書き換えると、終了できなくなります
+- 絵文字を書き込む投稿は、絵文字が登録されているサーバーに投稿されたものにしてください（別のサーバーの絵文字は、Bot に「外部の絵文字を使用」権限が必要になります）
+
 モーダル内のラジオグループ・チェックボックスグループは新しい Discord API の機能のため、`discord.js` は 14.27.0 以上が必要です。
 
 ## 開発コマンド
@@ -190,6 +216,8 @@ Discord は、画像を PC では最大 550px 幅、スマホでは画面の幅�
 ## 注意点
 
 - `@everyone` を実際に通知するには、Bot自身に「Mention Everyone」権限が必要です（上記の招待URLに含めています）
+- リアクションを受け取るため、Bot は `GuildMessageReactions` のインテントを使います（特権のインテントではないので、Developer Portal での許可は要りません）
+- 標準の絵文字 💣 は、Bot が見えるチャンネルのどの投稿に付いても、Bot が受け取り、付けた人が募集した人かを確かめるために、そのたびに投稿を1回取得します。💣 が普段の会話でよく使われるサーバーでは、取得の回数が増えます
 - 募集機能はモーダル1画面で入力が完結するため、入力途中の状態をBot側では保持しません（`draftStore.ts` は、複数の画面をまたぐ機能を作るときのために残しています）
 - 参加者の一覧は、Bot のメモリではなく、投稿に添付した画像のファイル名（`participants-<ユーザーID>-….png`）に持たせています。そのため、Bot を再起動しても、投稿済みの募集の参加者は消えません
   ファイル名は、参加者1人につき約20文字ずつ長くなります。Discord のファイル名の長さの上限は確認できていないため、数十人規模の募集では、更新に失敗する可能性があります

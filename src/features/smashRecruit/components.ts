@@ -19,6 +19,7 @@ import {
   removeParticipant
 } from './participants.js'
 import { buildParticipantsImage, fetchImage } from './participantsImage.js'
+import { buildPosterLine, parsePosterId } from './poster.js'
 import { isModeKey, isStartTimeKey } from './types.js'
 import type { RecruitInput, ToggleKey } from './types.js'
 import { buildJoinRow } from './view.js'
@@ -116,6 +117,14 @@ function createParticipantHandler (customId: string, action: 'join' | 'leave'): 
       await runExclusive(interaction.message.id, async () => {
         // ボタンを押した時点のスナップショットではなく、直前の処理を反映した最新の投稿を読む
         const message = await interaction.fetchReply()
+
+        // 募集した人が絵文字のリアクションで書き換えた投稿(募集の終了)には、参加も取り消しもできない。
+        // 投稿からボタンは外れているが、古い画面を開いている人が押す場合がある
+        if (parsePosterId(message.content) === undefined) {
+          await interaction.followUp({ content: 'この募集は終了しています。', flags: MessageFlags.Ephemeral })
+          return
+        }
+
         const current = parseParticipantIds(message.attachments.first()?.name)
         const { ids, changed } = action === 'join'
           ? addParticipant(current, interaction.user.id)
@@ -181,7 +190,7 @@ const modalHandler = defineComponent<ModalSubmitInteraction>({
       `・ステージギミック：${TOGGLE_LABELS[input.gimmick]}`,
       `・アイテム：${TOGGLE_LABELS[input.item]}`,
       `・希望開始時間：${START_TIME_LABELS[input.startTime]}`,
-      `・募集した人：${interaction.user.toString()}`,
+      buildPosterLine(interaction.user.toString()),
       PARTICIPANTS_HEADING
     ].join('\n')
 
