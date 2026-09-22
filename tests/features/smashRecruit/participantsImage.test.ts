@@ -1,3 +1,4 @@
+import { createServer } from 'node:http'
 import sharp from 'sharp'
 import {
   AVATAR_GAP,
@@ -199,7 +200,7 @@ describe('fetchImage', () => {
 
     const result = await fetchImage('https://cdn.example/avatar.png')
 
-    expect(fetchSpy).toHaveBeenCalledWith('https://cdn.example/avatar.png')
+    expect(fetchSpy).toHaveBeenCalledWith('https://cdn.example/avatar.png', expect.anything())
     expect(result?.equals(png)).toBe(true)
   })
 
@@ -214,4 +215,37 @@ describe('fetchImage', () => {
 
     await expect(fetchImage('https://cdn.example/avatar.png')).resolves.toBeNull()
   })
+
+  test('応答が時間切れになっても、例外にせず null を返す(fetch が中断エラーを投げる場合)', async () => {
+    jest.spyOn(globalThis, 'fetch').mockRejectedValue(new DOMException('The operation was aborted.', 'TimeoutError'))
+
+    await expect(fetchImage('https://cdn.example/avatar.png')).resolves.toBeNull()
+  })
+
+  test('応答を待たずに中断できるよう、fetch に signal(AbortSignal)を渡す', async () => {
+    const fetchSpy = jest.spyOn(globalThis, 'fetch').mockResolvedValue(new Response(new Uint8Array()))
+
+    await fetchImage('https://cdn.example/avatar.png')
+
+    const options = fetchSpy.mock.calls[0][1] as { signal?: AbortSignal }
+    expect(options.signal).toBeInstanceOf(AbortSignal)
+  })
+
+  test('応答が、実際に約7秒で時間切れになる(応答しないサーバーに対して)', async () => {
+    const server = createServer((_req, _res) => { /* 応答しないサーバー */ })
+    await new Promise<void>((resolve) => server.listen(0, resolve))
+    const address = server.address()
+    if (address === null || typeof address === 'string') throw new Error('サーバーの起動に失敗しました')
+
+    const start = Date.now()
+    const result = await fetchImage(`http://127.0.0.1:${address.port}/avatar.png`)
+    const elapsedMs = Date.now() - start
+
+    server.close()
+
+    expect(result).toBeNull()
+    // 7000ms ちょうどでの誤差(実行環境の遅延)を許容する
+    expect(elapsedMs).toBeGreaterThanOrEqual(6900)
+    expect(elapsedMs).toBeLessThan(9000)
+  }, 12000)
 })

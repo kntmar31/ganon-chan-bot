@@ -325,7 +325,7 @@ describe('smashRecruit components', () => {
           size: 256,
           forceStatic: true
         })
-        expect(globalThis.fetch).toHaveBeenCalledWith(avatarUrl(POSTER_ID))
+        expect(globalThis.fetch).toHaveBeenCalledWith(avatarUrl(POSTER_ID), expect.anything())
       })
 
       test('投稿者のアイコンをダウンロードできなくても、投稿は成功し、投稿者は参加者になる', async () => {
@@ -625,8 +625,8 @@ describe('smashRecruit components', () => {
           size: 256,
           forceStatic: true
         })
-        expect(globalThis.fetch).toHaveBeenCalledWith(avatarUrl('100'))
-        expect(globalThis.fetch).toHaveBeenCalledWith(avatarUrl('333'))
+        expect(globalThis.fetch).toHaveBeenCalledWith(avatarUrl('100'), expect.anything())
+        expect(globalThis.fetch).toHaveBeenCalledWith(avatarUrl('333'), expect.anything())
       })
 
       test('アイコン画像のダウンロードに失敗しても、投稿は更新される', async () => {

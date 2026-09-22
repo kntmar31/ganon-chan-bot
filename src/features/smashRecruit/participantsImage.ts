@@ -78,15 +78,21 @@ export async function buildParticipantsImage (avatars: ReadonlyArray<Buffer | nu
     .toBuffer()
 }
 
+// 画像のダウンロードを待つ時間の上限(ミリ秒)。
+// 参加者全員ぶんを並行してダウンロードするため、1人が応答しないだけで、その投稿への操作全体が
+// 止まってしまうのを防ぐ(参加者の一覧は投稿ごとに1つずつ順番に処理しているため)
+const FETCH_TIMEOUT_MS = 7000
+
 /**
- * URL から画像をダウンロードする。
+ * URL から画像をダウンロードする。応答が FETCH_TIMEOUT_MS を過ぎても届かない場合は、諦める。
  *
  * @param url - 画像の URL
- * @returns 画像のバッファ。取得に失敗したときは null(参加者のアイコンが取れなくても、投稿全体は失敗させない)
+ * @returns 画像のバッファ。取得に失敗した(または時間切れになった)ときは null
+ *   (参加者のアイコンが取れなくても、投稿全体は失敗させない。呼び出し側で、灰色の丸として表示する)
  */
 export async function fetchImage (url: string): Promise<Buffer | null> {
   try {
-    const response = await fetch(url)
+    const response = await fetch(url, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
     if (!response.ok) return null
     return Buffer.from(await response.arrayBuffer())
   } catch {
