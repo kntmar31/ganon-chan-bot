@@ -4,6 +4,9 @@
   "description": "ガノンちゃん：複数機能を持つDiscord Bot（現在の機能: スマブラ対戦相手の募集）",
   "type": "module",
   "main": "dist/index.js",
+  "engines": {
+    "node": ">=20.9.0"
+  },
   "scripts": {
     "build": "tsc",
     "deploy-commands": "node dist/deploy-commands.js",
